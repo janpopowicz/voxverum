@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -41,8 +42,11 @@ class Alerter(private val context: Context) {
     }
 
     private fun vibrate(pattern: LongArray) {
-        val vibrator = context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-            ?: context.getSystemService(Vibrator::class.java)
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            context.getSystemService(Vibrator::class.java)
+        }
         vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
     }
 

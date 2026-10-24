@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import pl.voxverum.app.MainActivity
@@ -34,7 +35,11 @@ class CaptureForegroundService : Service() {
             .setContentIntent(openApp)
             .build()
         try {
-            startForeground(Notifications.ID_SESSION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                startForeground(Notifications.ID_SESSION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(Notifications.ID_SESSION, notification)
+            }
         } catch (e: RuntimeException) {
             // Android 14+ może odmówić startu z tła; sesja próbuje wtedy nagrywać bez tej usługi.
             Log.w(TAG, "startForeground(microphone) refused", e)
