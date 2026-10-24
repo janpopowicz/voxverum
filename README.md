@@ -60,6 +60,14 @@ To pierwsza rzecz do sprawdzenia, bo od niej zależy całe podejście:
 4. Ściągnij nagrania: `adb pull /sdcard/Android/data/pl.voxverum.app/files/debug` i odsłuchaj, czy słychać rozmówcę.
 5. Powtórz z `MIC` i `UNPROCESSED`. Zapiszcie, co działa na jakim telefonie (model i wersja Androida).
 
+W trakcie rozmowy możesz też zapytać system wprost, czy któraś aplikacja jest wyciszona:
+```bash
+adb shell dumpsys audio | grep -E "pack:(com.whatsapp|pl.voxverum.app)"
+```
+Szukaj `silenced:false` przy `pl.voxverum.app`. Na emulatorze z Androidem 16 i atrapą komunikatora
+(`MODE_IN_COMMUNICATION` + mikrofon `VOICE_COMMUNICATION`) oba nagrania działają równolegle, baner się pokazuje,
+a po rozłączeniu mikrofon jest zwalniany. Na prawdziwych telefonach i z prawdziwym WhatsAppem trzeba to jeszcze potwierdzić.
+
 ## Tryb symulacji
 Zakładka **Debug → Wybierz plik WAV** puszcza nagranie przez ten sam pipeline co rozmowę.
 Tak testujemy modele bez dzwonienia, także na emulatorze (plik wrzucasz przez `adb push plik.wav /sdcard/Download/`).
