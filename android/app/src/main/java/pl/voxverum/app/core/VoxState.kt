@@ -3,6 +3,7 @@ package pl.voxverum.app.core
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pl.voxverum.app.ml.Scores
 
 /** Stan rozmowy VoIP widziany przez aplikację. */
 sealed interface CallState {
@@ -37,6 +38,14 @@ object VoxState {
 
     fun updateAudio(transform: (AudioStatus) -> AudioStatus) {
         _audio.value = transform(_audio.value)
+    }
+
+    private val _scores = MutableStateFlow<Scores?>(null)
+    /** Ostatni wynik obu modeli; null, gdy nic nie jest analizowane. */
+    val scores: StateFlow<Scores?> = _scores.asStateFlow()
+
+    fun setScores(scores: Scores?) {
+        _scores.value = scores
     }
 
     fun setServiceConnected(connected: Boolean) {

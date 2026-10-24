@@ -2,13 +2,18 @@ package pl.voxverum.app.call
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import pl.voxverum.app.BuildConfig
 import pl.voxverum.app.audio.MicAudioSource
 import pl.voxverum.app.core.CallState
 import pl.voxverum.app.core.VoxSettings
 import pl.voxverum.app.core.VoxState
+import pl.voxverum.app.ml.ModelRegistry
+import pl.voxverum.app.ml.WindowAnalyzer
 import pl.voxverum.app.overlay.OverlayController
 import pl.voxverum.app.overlay.OverlayModel
 import pl.voxverum.app.overlay.Tone
@@ -33,6 +38,8 @@ class VoxAccessibilityService : AccessibilityService() {
         detector = CallDetector(this, scope, ::onCallStateChanged)
         detector.start()
         VoxState.setServiceConnected(true)
+        // Wczytujemy modele od razu, żeby start rozmowy nie czekał na ONNX Runtime.
+        scope.launch(Dispatchers.Default) { ModelRegistry.load(applicationContext) }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -71,12 +78,16 @@ class VoxAccessibilityService : AccessibilityService() {
         } else {
             null
         }
-        session = ProtectionSession(scope, source, dumper).also { it.start() }
+        session = ProtectionSession(scope, source, dumper) { window ->
+            val analyzer = WindowAnalyzer(withContext(Dispatchers.Default) { ModelRegistry.load(applicationContext) })
+            VoxState.setScores(analyzer.analyze(window))
+        }.also { it.start() }
     }
 
     private fun stopSession() {
         session?.stop()
         session = null
+        VoxState.setScores(null)
         if (::overlay.isInitialized) overlay.hide()
         CaptureForegroundService.stop(this)
     }

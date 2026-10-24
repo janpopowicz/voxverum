@@ -1,0 +1,12 @@
+{
+  "task": "scam",
+  "file": "scam.onnx",
+  "version": "mock-0.1",
+  "sample_rate": 16000,
+  "window_samples": 64000,
+  "input_name": "audio",
+  "output_name": "score",
+  "output_type": "probability",
+  "positive_index": 0,
+  "threshold": 0.8
+}
