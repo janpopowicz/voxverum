@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VoxVerum</string>
+    <string name="accessibility_service_label">VoxVerum – ochrona rozmów</string>
+    <string name="accessibility_service_description">VoxVerum wykrywa rozmowy WhatsApp i w ich trakcie analizuje dźwięk na telefonie, ostrzegając przed sklonowanym głosem i próbą wyłudzenia. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie.</string>
 </resources>
