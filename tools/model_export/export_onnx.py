@@ -40,13 +40,14 @@ OPSET = 17
 def load_model(args: argparse.Namespace) -> torch.nn.Module:
     if args.self_test:
         return _SelfTestNet()
+    # Kod modelu musi być importowalny także dla --pickle: torch.load odtwarza klasy po nazwie.
+    if args.code_dir:
+        sys.path.insert(0, str(args.code_dir.resolve()))
     if args.torchscript:
         return torch.jit.load(args.torchscript, map_location="cpu")
     if args.pickle:
         return torch.load(args.pickle, map_location="cpu", weights_only=False)
     if args.model_class:
-        if args.code_dir:
-            sys.path.insert(0, str(args.code_dir))
         module_name, class_name = args.model_class.split(":")
         cls = getattr(importlib.import_module(module_name), class_name)
         model = cls(**json.loads(args.model_kwargs))
@@ -141,13 +142,17 @@ def main() -> None:
     p.add_argument("--atol", type=float, default=1e-4)
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     args = p.parse_args()
-    sys.stdout.reconfigure(encoding="utf-8")  # polskie znaki w konsoli Windows
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8")  # polskie znaki w konsoli Windows
 
     n = int(args.window_seconds * SAMPLE_RATE)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     onnx_path = args.out_dir / f"{args.task}.onnx"
 
-    model = load_model(args)
+    try:
+        model = load_model(args)
+    except ModuleNotFoundError as e:
+        raise SystemExit(f"Nie znaleziono kodu modelu ({e}). Wskaż katalog z kodem przez --code-dir.") from e
     model.eval()
     export(model, onnx_path, n, args.input_name, args.output_name)
     print(f"Wyeksportowano {onnx_path} ({onnx_path.stat().st_size / 1e6:.1f} MB)")
