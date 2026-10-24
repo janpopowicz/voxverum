@@ -82,7 +82,8 @@ def read_wav_16k(path: Path) -> np.ndarray:
         if w.getsampwidth() != 2:
             raise SystemExit(f"{path}: obsługiwany jest tylko PCM 16-bit")
         rate, channels = w.getframerate(), w.getnchannels()
-        data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32767
+        # Ta sama skala co WavIo w aplikacji, żeby model dostał identyczne wejście.
+        data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
     if channels > 1:
         data = data.reshape(-1, channels).mean(axis=1)
     if rate != SAMPLE_RATE:

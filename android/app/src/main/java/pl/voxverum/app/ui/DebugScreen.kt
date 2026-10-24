@@ -96,7 +96,7 @@ fun DebugScreen(
         Section("Symulacja z pliku WAV") {
             Text(
                 "Puszcza nagranie przez ten sam pipeline co rozmowę. Działa też na emulatorze. " +
-                    "Obsługiwany jest PCM 16-bit, mono albo stereo, dowolna częstotliwość.",
+                    "Obsługiwany jest WAV PCM 16/24/32-bit albo float32, dowolna liczba kanałów i częstotliwość.",
                 style = MaterialTheme.typography.bodySmall,
             )
             if (simulation == null) {
