@@ -141,6 +141,7 @@ def main() -> None:
     p.add_argument("--atol", type=float, default=1e-4)
     p.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     args = p.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")  # polskie znaki w konsoli Windows
 
     n = int(args.window_seconds * SAMPLE_RATE)
     args.out_dir.mkdir(parents=True, exist_ok=True)

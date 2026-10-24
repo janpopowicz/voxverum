@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import pl.voxverum.app.ml.Scores
+import pl.voxverum.app.risk.RiskAssessment
 
 /** Stan rozmowy VoIP widziany przez aplikację. */
 sealed interface CallState {
@@ -46,6 +47,14 @@ object VoxState {
 
     fun setScores(scores: Scores?) {
         _scores.value = scores
+    }
+
+    private val _risk = MutableStateFlow<RiskAssessment?>(null)
+    /** Wygładzony poziom ryzyka bieżącej sesji; null poza sesją. */
+    val risk: StateFlow<RiskAssessment?> = _risk.asStateFlow()
+
+    fun setRisk(risk: RiskAssessment?) {
+        _risk.value = risk
     }
 
     fun setServiceConnected(connected: Boolean) {

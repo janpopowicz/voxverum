@@ -11,11 +11,12 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 
+/** Kolory baneru (ARGB). Granat = zaufanie, zieleń = „potwierdzone”, jak w identyfikacji z biznesplanu. */
 enum class Tone(val background: Int) {
-    NEUTRAL(Color.parseColor("#1F3A5F")),
-    OK(Color.parseColor("#2E7D32")),
-    WARN(Color.parseColor("#F9A825")),
-    DANGER(Color.parseColor("#C62828")),
+    NEUTRAL(0xFF1F3A5F.toInt()),
+    OK(0xFF2E7D32.toInt()),
+    WARN(0xFFF9A825.toInt()),
+    DANGER(0xFFC62828.toInt()),
 }
 
 data class OverlayModel(val tone: Tone, val title: String, val detail: String)
