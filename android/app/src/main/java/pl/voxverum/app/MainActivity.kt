@@ -36,8 +36,25 @@ import pl.voxverum.app.ui.VoxViewModel
 class MainActivity : ComponentActivity() {
     private val vm: VoxViewModel by viewModels()
 
+    private var requestedPermission: String? = null
+
     private val requestPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { vm.refreshPermissions() }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            vm.refreshPermissions()
+            val permission = requestedPermission ?: return@registerForActivityResult
+            // Po drugiej odmowie Android nie pokazuje już okna i od razu zwraca odmowę.
+            // Wtedy jedyna droga to ustawienia aplikacji, inaczej przycisk „Zezwól” nic nie robi.
+            if (!granted && !shouldShowRequestPermissionRationale(permission)) openAppSettings()
+        }
+
+    private fun ask(permission: String) {
+        requestedPermission = permission
+        requestPermission.launch(permission)
+    }
+
+    private fun openAppSettings() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+    }
 
     private val pickWav =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? -> uri?.let(vm::startSimulation) }
@@ -100,15 +117,14 @@ class MainActivity : ComponentActivity() {
                         models = models,
                         onProtectionChange = vm::setProtection,
                         onOpenAccessibility = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-                        onOpenAppInfo = {
-                            startActivity(
-                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)),
-                            )
-                        },
-                        onRequestMic = { requestPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                        onOpenAppInfo = ::openAppSettings,
+                        onRequestMic = { ask(Manifest.permission.RECORD_AUDIO) },
                         onRequestNotifications = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                requestPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                ask(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                // Android 10–12: powiadomienia wyłącza się tylko w ustawieniach.
+                                openAppSettings()
                             }
                         },
                     )

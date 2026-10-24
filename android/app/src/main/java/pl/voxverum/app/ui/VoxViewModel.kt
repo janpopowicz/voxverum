@@ -2,10 +2,10 @@ package pl.voxverum.app.ui
 
 import android.Manifest
 import android.app.Application
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.provider.OpenableColumns
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
@@ -96,12 +96,11 @@ class VoxViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshPermissions() {
         val app = getApplication<Application>()
-        val notifications = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         _permissions.value = Permissions(
             accessibility = isAccessibilityEnabled(),
             microphone = app.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
-            notifications = notifications,
+            // Uwzględnia i uprawnienie z Androida 13+, i wyłączenie powiadomień w ustawieniach.
+            notifications = app.getSystemService(NotificationManager::class.java).areNotificationsEnabled(),
         )
     }
 

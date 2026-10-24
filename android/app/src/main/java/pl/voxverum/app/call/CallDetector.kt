@@ -18,7 +18,8 @@ import pl.voxverum.app.core.CallState
  * 2. tryb audio systemu `MODE_IN_COMMUNICATION`, który komunikator ustawia na czas rozmowy VoIP.
  *
  * Rozmowa zaczyna się, gdy tryb audio przechodzi na komunikację, a WhatsApp był aktywny
- * w ciągu ostatnich [APP_SEEN_WINDOW_MS] ms. Kończy się, gdy tryb wraca do normalnego.
+ * w ciągu ostatnich [APP_SEEN_WINDOW_MS] ms. Kończy się, gdy tryb nie wraca do komunikacji
+ * przez [END_GRACE_MS] ms.
  */
 class CallDetector(
     context: Context,
@@ -29,6 +30,7 @@ class CallDetector(
     private val mainExecutor = context.mainExecutor
     private val modeListener = AudioManager.OnModeChangedListener { evaluate() }
     private var pollJob: Job? = null
+    private var endJob: Job? = null
 
     private var lastAppPackage: String? = null
     private var lastAppSeenAtMs = 0L
@@ -54,6 +56,8 @@ class CallDetector(
         }
         pollJob?.cancel()
         pollJob = null
+        endJob?.cancel()
+        endJob = null
         updateState(CallState.Idle)
     }
 
@@ -66,15 +70,28 @@ class CallDetector(
     }
 
     private fun evaluate() {
-        val inCommunication = audioManager.mode == AudioManager.MODE_IN_COMMUNICATION
-        val current = state
-        when {
-            current is CallState.Idle && inCommunication && appSeenRecently() ->
+        val inCommunication = isInCommunication()
+        when (state) {
+            CallState.Idle -> if (inCommunication && appSeenRecently()) {
                 updateState(CallState.Active(lastAppPackage!!, System.currentTimeMillis()))
-            current is CallState.Active && !inCommunication ->
-                updateState(CallState.Idle)
+            }
+            is CallState.Active -> if (inCommunication) {
+                endJob?.cancel()
+                endJob = null
+            } else if (endJob == null) {
+                // Tryb audio potrafi na chwilę zmienić się w trakcie rozmowy (np. przełączenie
+                // urządzenia audio). Kończymy dopiero, gdy nie wraca przez END_GRACE_MS, żeby nie
+                // zerować oceny ryzyka (i zatrzaśniętego alarmu) w połowie tej samej rozmowy.
+                endJob = scope.launch {
+                    delay(END_GRACE_MS)
+                    endJob = null
+                    if (!isInCommunication()) updateState(CallState.Idle)
+                }
+            }
         }
     }
+
+    private fun isInCommunication() = audioManager.mode == AudioManager.MODE_IN_COMMUNICATION
 
     private fun appSeenRecently(): Boolean =
         lastAppPackage != null &&
@@ -91,6 +108,7 @@ class CallDetector(
         private const val TAG = "VoxVerum"
         private const val POLL_INTERVAL_MS = 1_000L
         private const val APP_SEEN_WINDOW_MS = 60_000L
+        private const val END_GRACE_MS = 2_000L
 
         val SUPPORTED_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
     }
