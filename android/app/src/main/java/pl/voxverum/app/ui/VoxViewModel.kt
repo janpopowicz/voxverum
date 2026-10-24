@@ -82,6 +82,11 @@ class VoxViewModel(app: Application) : AndroidViewModel(app) {
             _models.value = loaded.values.map(::info).sortedBy { it.task }
         }
         viewModelScope.launch {
+            // Symulacja i rozmowa piszą do tego samego VoxState; prawdziwa rozmowa ma pierwszeństwo,
+            // inaczej wyniki z pliku WAV trafiałyby na baner nad rozmową.
+            callState.collect { if (it is CallState.Active) stopSimulation() }
+        }
+        viewModelScope.launch {
             VoxState.scores.filterNotNull().collect { s ->
                 _scoreHistory.value = (_scoreHistory.value + (s.clone to s.scam)).takeLast(HISTORY_POINTS)
             }
@@ -132,6 +137,7 @@ class VoxViewModel(app: Application) : AndroidViewModel(app) {
         _scoreHistory.value = emptyList()
         viewModelScope.launch {
             val analyzer = WindowAnalyzer(withContext(Dispatchers.Default) { ModelRegistry.load(app) })
+            if (callState.value is CallState.Active) return@launch
             val source = WavAudioSource({ app.contentResolver.openInputStream(uri)!! }, name = "WAV")
             _simulation.value = name
             simulationSession = ProtectionSession(

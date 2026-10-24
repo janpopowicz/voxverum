@@ -38,7 +38,14 @@ object ModelRegistry {
                     Log.w(TAG, "Drugi model dla ${spec.task} ($specFile) zignorowany")
                     return@runCatching
                 }
-                result[spec.task] = OnnxClassifier(env, bytes, spec)
+                val classifier = OnnxClassifier(env, bytes, spec)
+                // Próbne uruchomienie na ciszy: błąd w .json (długość okna, positive_index, kształt
+                // wyjścia) wychodzi teraz, a nie w połowie rozmowy. Przy okazji rozgrzewa ONNX Runtime.
+                val probe = runCatching { classifier.classify(FloatArray(spec.windowSamples)) }
+                    .onFailure { classifier.close() }
+                    .getOrThrow()
+                check(probe in 0f..1f) { "Model ${spec.file} zwrócił $probe zamiast wartości 0…1" }
+                result[spec.task] = classifier
                 Log.i(TAG, "Loaded model ${spec.task} ${spec.version} from ${spec.file}")
             }.onFailure { Log.e(TAG, "Failed to load model $specFile", it) }
         }

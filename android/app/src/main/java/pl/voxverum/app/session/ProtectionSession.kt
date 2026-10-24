@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import pl.voxverum.app.audio.AudioSource
@@ -53,6 +54,9 @@ class ProtectionSession(
                         VoxState.updateAudio { it.copy(levelDb = level, sourceName = source.name) }
                     }
                     .windowed(WINDOW_SAMPLES, HOP_SAMPLES)
+                    // Gdy modele liczą dłużej niż krok okna, bierzemy najświeższe okno zamiast
+                    // kolejkować zaległe: ostrzeżenie ma dotyczyć tego, co dzieje się teraz.
+                    .conflate()
                     .collect { window ->
                         val speech = Vad.isSpeech(window, source.sampleRate)
                         VoxState.updateAudio { it.copy(speech = speech, windows = it.windows + 1) }

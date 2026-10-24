@@ -74,7 +74,14 @@ fun DebugScreen(
         }
 
         Section("Modele") {
-            models.forEach { Mono("${it.task.id}: ${it.version}  próg ${fmt(it.threshold)}${if (it.mock) "  (atrapa)" else ""}") }
+            models.forEach {
+                val note = when {
+                    it.version == "missing" -> "  (BRAK MODELU, szczegóły: adb logcat -s VoxVerum)"
+                    it.mock -> "  (atrapa)"
+                    else -> ""
+                }
+                Mono("${it.task.id}: ${it.version}  próg ${fmt(it.threshold)}$note")
+            }
             if (scores != null) {
                 Mono("klon: ${fmt(scores.clone)}   wyłudzenie: ${fmt(scores.scam)}   czas: ${scores.latencyMs} ms")
             }
