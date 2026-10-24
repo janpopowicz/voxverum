@@ -1,12 +1,10 @@
 package pl.voxverum.app.alert
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -51,9 +49,10 @@ class Alerter(private val context: Context) {
     }
 
     private fun notify(risk: RiskAssessment) {
-        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return
-        }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        // Na Androidzie 13+ odzwierciedla uprawnienie POST_NOTIFICATIONS, a na 10–12 ustawienie
+        // użytkownika. Samo checkSelfPermission(POST_NOTIFICATIONS) zwraca odmowę poniżej API 33.
+        if (!manager.areNotificationsEnabled()) return
         val openApp = PendingIntent.getActivity(
             context,
             0,
@@ -69,6 +68,6 @@ class Alerter(private val context: Context) {
             .setContentIntent(openApp)
             .setAutoCancel(true)
             .build()
-        context.getSystemService(NotificationManager::class.java).notify(Notifications.ID_ALERT, notification)
+        manager.notify(Notifications.ID_ALERT, notification)
     }
 }

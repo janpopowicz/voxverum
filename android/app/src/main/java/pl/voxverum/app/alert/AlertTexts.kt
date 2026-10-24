@@ -11,8 +11,16 @@ import kotlin.math.roundToInt
  * a detektor to sygnał pomocniczy, więc zawsze odsyłamy do weryfikacji „poza głosem”.
  */
 object AlertTexts {
-    fun overlay(risk: RiskAssessment?, silenced: Boolean, mockModels: Boolean): OverlayModel {
+    /** [error] to błąd nasłuchu (np. brak uprawnienia do mikrofonu); wtedy nie udajemy, że chronimy. */
+    fun overlay(risk: RiskAssessment?, silenced: Boolean, mockModels: Boolean, error: String? = null): OverlayModel {
         val suffix = if (mockModels) " (modele testowe)" else ""
+        if (error != null) {
+            return OverlayModel(
+                Tone.WARN,
+                "Analiza nie działa",
+                "Nie udało się słuchać rozmowy: $error. Otwórz VoxVerum i sprawdź uprawnienia.",
+            )
+        }
         if (silenced) {
             return OverlayModel(
                 Tone.NEUTRAL,

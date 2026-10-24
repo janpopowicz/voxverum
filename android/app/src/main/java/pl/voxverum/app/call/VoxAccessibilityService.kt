@@ -97,7 +97,9 @@ class VoxAccessibilityService : AccessibilityService() {
             ).also { it.start() }
 
             // Baner odświeża się przy każdej zmianie ryzyka albo wyciszenia mikrofonu.
-            combine(VoxState.risk, VoxState.audio) { risk, audio -> AlertTexts.overlay(risk, audio.silenced, mock) }
+            combine(VoxState.risk, VoxState.audio) { risk, audio ->
+                AlertTexts.overlay(risk, audio.silenced, mock, audio.error)
+            }
                 .collect { overlay.render(it) }
         }
         sessionJob = start

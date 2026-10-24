@@ -26,6 +26,13 @@ class AlertTextsTest {
     }
 
     @Test
+    fun `capture error is shown instead of pretending to listen`() {
+        val m = AlertTexts.overlay(null, silenced = false, mockModels = false, error = "Brak uprawnienia RECORD_AUDIO")
+        assertEquals("Analiza nie działa", m.title)
+        assertTrue(m.detail.contains("RECORD_AUDIO"))
+    }
+
+    @Test
     fun `danger maps to red with matching message`() {
         assertEquals(Tone.DANGER, AlertTexts.overlay(risk(RiskLevel.DANGER, RiskLevel.OK), false, false).tone)
         assertTrue(AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.DANGER), false, false).title.contains("wyłudzenia"))
