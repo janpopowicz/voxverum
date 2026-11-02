@@ -17,6 +17,8 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
 | `android/` | aplikacja (Kotlin, Jetpack Compose, ONNX Runtime) |
 | `models/README.md` | **kontrakt dla modeli**: wejście, wyjście, plik `.json`, jak wpiąć model z PyTorch |
 | `tools/model_export/` | `export_onnx.py` (PyTorch → ONNX + test zgodności), `make_mock_models.py` (atrapy) |
+| `models/mother-voice-v1/` | wagi detektora syntetycznego głosu **Mother Voice v1** i raporty dev/test |
+| `scripts/` | kod modelu Mother Voice i predykcja z pliku audio w Pythonie, instrukcja: [INTEGRATION.md](INTEGRATION.md) |
 
 ## Jak to działa i ograniczenia
 - Android nie daje zwykłym aplikacjom dźwięku z rozmów VoIP. Jedyny wyjątek, z którego korzystamy, to
