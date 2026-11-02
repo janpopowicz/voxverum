@@ -23,6 +23,7 @@ class OnnxClassifier(
     override val version = spec.version
     override val threshold = spec.threshold
     override val isMock = spec.version.startsWith("mock")
+    override val windowSamples = spec.windowSamples
 
     init {
         require(spec.inputName in session.inputNames) {
@@ -62,6 +63,7 @@ class MissingModelClassifier(override val task: Task) : AudioClassifier {
     override val version = VERSION
     override val threshold = 1f
     override val isMock = false
+    override val windowSamples = 0
     override fun classify(window: FloatArray) = 0f
 
     companion object {

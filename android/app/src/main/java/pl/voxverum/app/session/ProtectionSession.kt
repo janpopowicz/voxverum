@@ -7,9 +7,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import pl.voxverum.app.BuildConfig
 import pl.voxverum.app.audio.AudioSource
 import pl.voxverum.app.audio.MicAudioSource
 import pl.voxverum.app.audio.Vad
+import pl.voxverum.app.audio.VadResult
 import pl.voxverum.app.audio.windowed
 import pl.voxverum.app.core.AudioStatus
 import pl.voxverum.app.core.VoxState
@@ -17,6 +19,7 @@ import pl.voxverum.app.ml.Scores
 import pl.voxverum.app.ml.WindowAnalyzer
 import pl.voxverum.app.risk.RiskAssessment
 import pl.voxverum.app.risk.RiskEngine
+import java.util.Locale
 
 /**
  * Jedna sesja ochrony = jedna rozmowa (albo jeden plik w trybie symulacji).
@@ -58,9 +61,16 @@ class ProtectionSession(
                     // kolejkować zaległe: ostrzeżenie ma dotyczyć tego, co dzieje się teraz.
                     .conflate()
                     .collect { window ->
-                        val speech = Vad.isSpeech(window, source.sampleRate)
-                        VoxState.updateAudio { it.copy(speech = speech, windows = it.windows + 1) }
-                        if (speech) analyze(window)
+                        // Detektor patrzy na ten sam fragment co model (Mother Voice: ostatnie 3 s z 4 s).
+                        val vad = Vad.analyze(modelInput(window), source.sampleRate)
+                        VoxState.updateAudio {
+                            it.copy(speech = vad.isSpeech, tone = vad.toneRatio > VadResult.MAX_TONE, windows = it.windows + 1)
+                        }
+                        val scores = if (vad.isSpeech) analyze(window) else null
+                        if (BuildConfig.DEBUG) {
+                            val clone = scores?.let { String.format(Locale.US, "%.3f", it.clone) } ?: "-"
+                            Log.d(TAG, String.format(Locale.US, "okno mowa=%.2f ton=%.2f klon=%s", vad.speechRatio, vad.toneRatio, clone))
+                        }
                     }
             } catch (e: CancellationException) {
                 throw e
@@ -69,7 +79,7 @@ class ProtectionSession(
                 VoxState.updateAudio { it.copy(error = e.message ?: e.toString()) }
             } finally {
                 debugDumper?.flush()
-                VoxState.updateAudio { it.copy(running = false, levelDb = Vad.SILENCE_DB, speech = false) }
+                VoxState.updateAudio { it.copy(running = false, levelDb = Vad.SILENCE_DB, speech = false, tone = false) }
                 onFinished(latest)
             }
         }
@@ -82,12 +92,18 @@ class ProtectionSession(
         silencedJob = null
     }
 
-    private suspend fun analyze(window: FloatArray) {
+    private fun modelInput(window: FloatArray): FloatArray {
+        val n = analyzer.inputSamples
+        return if (n in 1 until window.size) window.copyOfRange(window.size - n, window.size) else window
+    }
+
+    private suspend fun analyze(window: FloatArray): Scores {
         val scores = analyzer.analyze(window)
         latest = engine.update(scores.clone, scores.scam)
         VoxState.setScores(scores)
         VoxState.setRisk(latest)
         onAssessment(latest, scores)
+        return scores
     }
 
     companion object {
