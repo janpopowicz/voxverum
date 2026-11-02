@@ -8,6 +8,8 @@ interface AudioClassifier : AutoCloseable {
     val version: String
     val threshold: Float
     val isMock: Boolean
+    /** Ile ostatnich próbek okna model faktycznie ocenia (0, gdy modelu nie ma). */
+    val windowSamples: Int
 
     /** [window] to 16 kHz mono float; klasyfikator sam bierze z niego tyle, ile potrzebuje. */
     fun classify(window: FloatArray): Float

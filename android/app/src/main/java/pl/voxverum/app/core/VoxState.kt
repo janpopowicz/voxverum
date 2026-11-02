@@ -18,6 +18,8 @@ data class AudioStatus(
     val sourceName: String = "",
     val levelDb: Float = -100f,
     val speech: Boolean = false,
+    /** W oknie był stały ton (sygnał wołania, brum), więc okno pominięto. */
+    val tone: Boolean = false,
     val silenced: Boolean = false,
     val windows: Int = 0,
     val error: String? = null,

@@ -34,7 +34,7 @@ fun ConsentScreen(onAccept: () -> Unit) {
         Bullet("W trakcie rozmowy WhatsApp aplikacja słucha dźwięku z mikrofonu i ocenia, czy głos może być sklonowany oraz czy rozmowa wygląda na próbę wyłudzenia.")
         Bullet("Analiza działa w całości na tym telefonie. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. W historii zostaje tylko czas rozmowy i wynik.")
         Bullet("Żeby aplikacja słyszała rozmówcę, prowadź rozmowę na głośniku.")
-        Bullet("Detektor to sygnał pomocniczy, a nie dowód. Przy prośbie o pieniądze zawsze zweryfikuj rozmówcę innym kanałem: Kod Rozmowy, hasło rodzinne, oddzwonienie na znany numer.")
+        Bullet("Detektor to sygnał pomocniczy, a nie dowód. Przy prośbie o pieniądze potwierdź ją innym kanałem, na przykład dzwoniąc na znany wcześniej numer.")
         Bullet("Rozmówca ma prawo wiedzieć, że korzystasz z ochrony rozmów. Jeśli możesz, poinformuj go o tym.")
         Bullet("To wersja testowa (prototyp). Aplikacja korzysta z usługi ułatwień dostępu tylko do wykrywania rozmów WhatsApp i wyświetlania ostrzeżeń.")
         Spacer(Modifier.height(8.dp))

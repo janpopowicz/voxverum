@@ -69,6 +69,7 @@ fun DebugScreen(
                 progress = { ((audio.levelDb + 60f) / 60f).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (audio.tone) Text("Stały ton w tle (sygnał wołania, brum): okno pominięte", color = Danger)
             if (audio.silenced) Text("System WYCISZYŁ mikrofon dla aplikacji", color = Danger, fontWeight = FontWeight.Bold)
             audio.error?.let { Text("Błąd: $it", color = Danger) }
         }

@@ -23,8 +23,10 @@ class Alerter(private val context: Context) {
 
     fun onAssessment(risk: RiskAssessment) {
         val level = risk.overall
-        if (level <= lastAlerted) return
+        val previous = lastAlerted
         lastAlerted = level
+        if (level < RiskLevel.DANGER) clearNotification()
+        if (level <= previous) return
         when (level) {
             RiskLevel.WARN -> vibrate(longArrayOf(0, 200))
             RiskLevel.DANGER -> {
@@ -37,6 +39,11 @@ class Alerter(private val context: Context) {
 
     fun reset() {
         lastAlerted = RiskLevel.OK
+        clearNotification()
+    }
+
+    private fun clearNotification() {
+        context.getSystemService(NotificationManager::class.java).cancel(Notifications.ID_ALERT)
     }
 
     private fun vibrate(pattern: LongArray) {

@@ -16,6 +16,9 @@ class WindowAnalyzer(private val classifiers: Map<Task, AudioClassifier>) {
     val voiceClone: AudioClassifier get() = classifiers.getValue(Task.VOICE_CLONE)
     val scam: AudioClassifier get() = classifiers.getValue(Task.SCAM)
 
+    /** Najdłuższy fragment okna, na który patrzy któryś model; 0, gdy nie ma żadnego modelu. */
+    val inputSamples: Int get() = classifiers.values.maxOf { it.windowSamples }
+
     suspend fun analyze(window: FloatArray): Scores = withContext(Dispatchers.Default) {
         val start = SystemClock.elapsedRealtime()
         val clone = voiceClone.classify(window)
