@@ -1,6 +1,7 @@
 package pl.voxverum.app.alert
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pl.voxverum.app.overlay.Tone
@@ -40,10 +41,10 @@ class AlertTextsTest {
     }
 
     @Test
-    fun `warn and ok show percentages and mock marker`() {
+    fun `warn and ok show no percentages but mark mock models`() {
         val warn = AlertTexts.overlay(risk(RiskLevel.WARN, RiskLevel.OK), false, mockModels = true)
         assertEquals(Tone.WARN, warn.tone)
-        assertTrue(warn.detail.contains("Klon: 50%"))
+        assertFalse("wyniki nie są skalibrowane", warn.detail.contains("%"))
         assertTrue(warn.detail.endsWith("(modele testowe)"))
         assertEquals(Tone.OK, AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false).tone)
     }

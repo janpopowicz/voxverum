@@ -8,8 +8,12 @@ Aplikacja Android uruchamia **dwa modele na telefonie** przez ONNX Runtime:
 | `scam` | prawdopodobieństwo, że rozmowa to próba wyłudzenia |
 
 Modele trenujecie w PyTorch, a do aplikacji trafiają jako `.onnx` + `.json`
-w `android/app/src/main/assets/models/`. Teraz leżą tam **atrapy** (`version: mock-0.1`),
-które reagują tylko na głośność.
+w `android/app/src/main/assets/models/`. Stan:
+
+| Zadanie | Model w aplikacji |
+|---|---|
+| `voice_clone` | **Mother Voice v1** (`models/mother-voice-v1/best.pt`), okno 3 s, wyjście: 1 logit, próg 0,572 z dev |
+| `scam` | brak; aplikacja używa wtedy `MissingModelClassifier`, który nigdy nie alarmuje |
 
 ## Wejście
 - `float32 [1, N]`, surowy waveform **16 kHz mono**, wartości w zakresie −1…1.
@@ -52,11 +56,23 @@ tools/model_export/.venv/Scripts/python tools/model_export/export_onnx.py \
     --output-type logits --positive-index 1 --threshold 0.7 --version 2026.11.1 \
     --wav probki/prawdziwy.wav probki/klon.wav
 ```
-Skrypt eksportuje model (opset 17), porównuje wyniki PyTorch i ONNX Runtime (cisza, szum, podane WAV),
-zapisuje `.onnx` + `.json` do assets i kończy się błędem, jeśli wyniki się rozjeżdżają.
+Skrypt eksportuje model (opset 17), porównuje wyniki PyTorch i ONNX Runtime (cichy szum, głośny szum, podane WAV)
+i dopiero wtedy zapisuje `.onnx` + `.json` do assets. Jeśli wyniki się rozjeżdżają, kończy się błędem i niczego nie podmienia.
+Przy checkpoincie z treningu (słownik z kluczem `model`) próg bierze z `thresholds.eer`, chyba że podasz `--threshold`.
 Potem przebudowujecie aplikację i sprawdzacie model w **trybie symulacji** (ekran Debug → wybierz WAV).
 
-Atrapy można odtworzyć przez `tools/model_export/make_mock_models.py`.
+### Mother Voice v1
+```bash
+tools/model_export/.venv/Scripts/python tools/model_export/export_onnx.py     --task voice_clone --code-dir scripts --model-class mother_voice_onnx:MotherVoiceOnnx     --state-dict models/mother-voice-v1/best.pt --window-seconds 3 --output-type logits --version mother-voice-v1
+tools/model_export/.venv/Scripts/python -m unittest tools/model_export/test_mother_voice_onnx.py
+```
+`torch.stft` na liczbach zespolonych nie przechodzi eksportu do ONNX, dlatego `mother_voice_onnx.py` liczy to samo widmo
+splotem. Wagi są te same, a test sprawdza zgodność z oryginałem. Po zmianie architektury w `scripts/mother_voice.py` trzeba
+poprawić też `mother_voice_onnx.py`. Gdy będzie nowy checkpoint tej samej sieci, wystarczy powtórzyć powyższe polecenia.
+Na urządzeniu zgodność z PyTorch sprawdza `ModelRegistryTest` (`./gradlew connectedDebugAndroidTest`).
+
+Atrapę dla zadania bez modelu można wygenerować przez `make_mock_models.py --task scam`.
+Nie generuj atrapy `voice_clone`, bo nadpiszesz Mother Voice.
 
 ## Ograniczenia na telefonie
 - Rozmiar: celujcie w < 50 MB na model (APK + RAM). Większe modele można kwantyzować (`onnxruntime.quantization`).

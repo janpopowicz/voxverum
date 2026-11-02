@@ -4,11 +4,11 @@ import pl.voxverum.app.overlay.OverlayModel
 import pl.voxverum.app.overlay.Tone
 import pl.voxverum.app.risk.RiskAssessment
 import pl.voxverum.app.risk.RiskLevel
-import kotlin.math.roundToInt
 
 /**
  * Teksty ostrzeżeń. Zgodnie z biznesplanem: konkretne kroki zamiast straszenia,
  * a detektor to sygnał pomocniczy, więc zawsze odsyłamy do weryfikacji „poza głosem”.
+ * Bez procentów: wyniki modeli nie są skalibrowanym prawdopodobieństwem (patrz INTEGRATION.md).
  */
 object AlertTexts {
     /** [error] to błąd nasłuchu (np. brak uprawnienia do mikrofonu); wtedy nie udajemy, że chronimy. */
@@ -56,12 +56,12 @@ object AlertTexts {
             risk.overall == RiskLevel.WARN -> OverlayModel(
                 Tone.WARN,
                 "Uwaga: coś się nie zgadza",
-                "Zapytaj o Kod Rozmowy. ${percentages(risk)}$suffix",
+                "Zapytaj o Kod Rozmowy albo hasło rodzinne.$suffix",
             )
             else -> OverlayModel(
                 Tone.OK,
                 "Nie wykryto zagrożenia",
-                "${percentages(risk)} Głos to nie dowód tożsamości.$suffix",
+                "Głos to nie dowód tożsamości.$suffix",
             )
         }
     }
@@ -69,9 +69,4 @@ object AlertTexts {
     fun notificationTitle(risk: RiskAssessment): String = overlay(risk, silenced = false, mockModels = false).title
 
     fun notificationText(risk: RiskAssessment): String = overlay(risk, silenced = false, mockModels = false).detail
-
-    private fun percentages(risk: RiskAssessment): String =
-        "Klon: ${pct(risk.clone.smoothed)} · Wyłudzenie: ${pct(risk.scam.smoothed)}."
-
-    private fun pct(p: Float) = "${(p * 100).roundToInt()}%"
 }

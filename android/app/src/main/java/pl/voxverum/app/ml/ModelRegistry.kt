@@ -39,9 +39,9 @@ object ModelRegistry {
                     return@runCatching
                 }
                 val classifier = OnnxClassifier(env, bytes, spec)
-                // Próbne uruchomienie na ciszy: błąd w .json (długość okna, positive_index, kształt
-                // wyjścia) wychodzi teraz, a nie w połowie rozmowy. Przy okazji rozgrzewa ONNX Runtime.
-                val probe = runCatching { classifier.classify(FloatArray(spec.windowSamples)) }
+                // Próbne uruchomienie: błąd w .json (długość okna, positive_index, kształt wyjścia)
+                // wychodzi teraz, a nie w połowie rozmowy. Przy okazji rozgrzewa ONNX Runtime.
+                val probe = runCatching { classifier.classify(probeWindow(spec.windowSamples)) }
                     .onFailure { classifier.close() }
                     .getOrThrow()
                 check(probe in 0f..1f) { "Model ${spec.file} zwrócił $probe zamiast wartości 0…1" }
@@ -56,5 +56,14 @@ object ModelRegistry {
             }
         }
         return result
+    }
+
+    /**
+     * Cichy szum zamiast samych zer: modele z normalizacją per klip (Mother Voice) dają na idealnej
+     * ciszy wynik zależny od błędów zaokrągleń, a takie okno i tak nie przechodzi przez VAD.
+     */
+    internal fun probeWindow(size: Int): FloatArray {
+        val random = java.util.Random(0)
+        return FloatArray(size) { (random.nextGaussian() * 1e-3).toFloat() }
     }
 }

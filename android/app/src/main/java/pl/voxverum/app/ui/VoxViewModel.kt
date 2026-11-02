@@ -23,6 +23,7 @@ import pl.voxverum.app.core.VoxSettings
 import pl.voxverum.app.core.VoxState
 import pl.voxverum.app.history.CallHistory
 import pl.voxverum.app.ml.AudioClassifier
+import pl.voxverum.app.ml.MissingModelClassifier
 import pl.voxverum.app.ml.ModelRegistry
 import pl.voxverum.app.ml.Task
 import pl.voxverum.app.ml.WindowAnalyzer
@@ -37,7 +38,9 @@ data class Permissions(
     val allGranted get() = accessibility && microphone && notifications
 }
 
-data class ModelInfo(val task: Task, val version: String, val threshold: Float, val mock: Boolean)
+data class ModelInfo(val task: Task, val version: String, val threshold: Float, val mock: Boolean) {
+    val missing get() = version == MissingModelClassifier.VERSION
+}
 
 class VoxViewModel(app: Application) : AndroidViewModel(app) {
     val settings = VoxSettings(app)

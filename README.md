@@ -26,7 +26,9 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
 - Mikrofon słyszy rozmówcę tylko wtedy, gdy rozmowa jest **na głośniku**.
 - Google Play nie dopuszcza takich aplikacji (polityka z 2022 r.), więc dystrybuujemy **APK ręcznie**.
 - Wykrycie rozmowy: zdarzenia z WhatsApp (okno lub powiadomienie o połączeniu) + tryb audio `MODE_IN_COMMUNICATION`.
-- Teraz w aplikacji są **atrapy modeli** (reagują tylko na głośność). Prawdziwe modele: patrz `models/README.md`.
+- **voice_clone** to model **Mother Voice v1** od Jana (okno 3 s, próg 0,572 z dev). **scam** nie ma jeszcze modelu,
+  więc nigdy nie alarmuje, a ekran Ochrona to pokazuje. Wynik modelu nie jest procentem pewności, dlatego baner pokazuje
+  tylko poziom (zielony, żółty, czerwony). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
 
 ## Uruchamianie
 

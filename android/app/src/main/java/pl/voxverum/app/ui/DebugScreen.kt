@@ -76,7 +76,7 @@ fun DebugScreen(
         Section("Modele") {
             models.forEach {
                 val note = when {
-                    it.version == "missing" -> "  (BRAK MODELU, szczegóły: adb logcat -s VoxVerum)"
+                    it.missing ->"  (BRAK MODELU, szczegóły: adb logcat -s VoxVerum)"
                     it.mock -> "  (atrapa)"
                     else -> ""
                 }

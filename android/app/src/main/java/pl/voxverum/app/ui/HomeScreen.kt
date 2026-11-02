@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pl.voxverum.app.core.CallState
+import pl.voxverum.app.ml.Task
 import pl.voxverum.app.risk.RiskAssessment
 import pl.voxverum.app.risk.RiskLevel
 
@@ -92,14 +93,14 @@ fun HomeScreen(
             }
         }
 
-        if (models.any { it.mock }) {
+        val notices = models.mapNotNull { modelNotice(it) }
+        if (notices.isNotEmpty()) {
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Warning.copy(alpha = 0.2f)),
             ) {
                 Text(
-                    "Aplikacja używa modeli testowych (atrap), które reagują tylko na głośność. " +
-                        "Wyniki nie oznaczają prawdziwego wykrycia.",
+                    notices.joinToString(" "),
                     Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -146,5 +147,17 @@ private fun Requirement(ok: Boolean, label: String, action: String, onAction: ()
         Text(if (ok) "✅" else "⚠️")
         Text(label, Modifier.weight(1f).padding(start = 8.dp))
         if (!ok) OutlinedButton(onClick = onAction) { Text(action) }
+    }
+}
+
+private fun modelNotice(model: ModelInfo): String? {
+    val what = when (model.task) {
+        Task.VOICE_CLONE -> "sklonowanego głosu"
+        Task.SCAM -> "prób wyłudzenia"
+    }
+    return when {
+        model.missing -> "Wykrywanie $what jeszcze nie działa (brak modelu)."
+        model.mock -> "Wykrywanie $what to atrapa, która reaguje tylko na głośność."
+        else -> null
     }
 }

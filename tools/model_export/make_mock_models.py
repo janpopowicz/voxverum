@@ -3,8 +3,10 @@
 Atrapy NIE wykrywają niczego. Liczą prostą funkcję głośności okna, więc wynik rośnie,
 gdy mówisz głośniej. To wystarcza do testowania UI, alertów i progów.
 
-Użycie (z katalogu repo):
-    tools/model_export/.venv/Scripts/python tools/model_export/make_mock_models.py
+Użycie (z katalogu repo), tylko dla zadań, które nie mają jeszcze prawdziwego modelu:
+    tools/model_export/.venv/Scripts/python tools/model_export/make_mock_models.py --task scam
+
+voice_clone to już Mother Voice v1, więc nie generuj dla niego atrapy, bo nadpiszesz model.
 """
 
 from __future__ import annotations
@@ -85,6 +87,7 @@ def spec(task: str, file: str, threshold: float) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--task", required=True, nargs="+", choices=["voice_clone", "scam"])
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -94,7 +97,8 @@ def main() -> None:
         "scam": build_rms_model(scale=15.0, bias=-3.5),
     }
     rng = np.random.default_rng(0)
-    for task, model in models.items():
+    for task in args.task:
+        model = models[task]
         onnx_path = args.out_dir / f"{task}.onnx"
         onnx.save(model, onnx_path)
         (args.out_dir / f"{task}.json").write_text(json.dumps(spec(task, onnx_path.name, 0.8), indent=2) + "\n")

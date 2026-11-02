@@ -49,48 +49,44 @@ Kotlin, Compose, minSdk 29, target/compileSdk 36, AGP 8.13, Kotlin 2.2.20, ONNX 
 
 Prywatność: audio jest tylko w RAM. `allowBackup=false`, a `data_extraction_rules.xml` wyklucza wszystko.
 
-## Kontrakt modelu w aplikacji
+## Modele w aplikacji
 `android/app/src/main/assets/models/<task>.onnx` + `<task>.json`, gdzie task to `voice_clone` albo `scam`.
 JSON: `task, file, version, sample_rate(16000), window_samples, input_name, output_name,
-output_type(logits|probability), positive_index, threshold` (opcjonalnie `mock`).
-Wejście `float32 [1, N]`, preprocessing w grafie. Jedna wartość wyjścia przy `logits` przechodzi przez sigmoid, dwie przez softmax.
-Teraz w assets są atrapy z `tools/model_export/make_mock_models.py`, które reagują tylko na głośność.
+output_type(logits|probability), positive_index, threshold`.
+Wejście to `float32 [1, N]`, a preprocessing jest w grafie modelu. Model bierze ostatnie `window_samples` z okna 4 s (`ScoreMath.tail`).
+Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. Gdy ma dwie, liczy softmax.
+
+- **voice_clone = Mother Voice v1** od Jana (`models/mother-voice-v1/best.pt`, kod w `scripts/mother_voice.py`,
+  opis w `INTEGRATION.md`). Okno 48000 próbek (3 s), wyjście to jeden logit `[1]`, próg 0,572 (`thresholds.eer` z dev).
+  Wynik **nie jest skalibrowanym prawdopodobieństwem**, więc baner nie pokazuje procentów.
+- **scam: brak modelu.** Atrapę usunęliśmy, bo reagowała na głośność i obok prawdziwego detektora dawała fałszywe alarmy.
+  Brakujący model to `MissingModelClassifier`: zwraca zawsze 0, `isMock=false`, `version="missing"`.
+  Ekran Ochrona pokazuje „Wykrywanie prób wyłudzenia jeszcze nie działa”.
+- Eksport: `torch.stft` na liczbach zespolonych nie przechodzi eksportu ONNX, dlatego `tools/model_export/mother_voice_onnx.py`
+  (`MotherVoiceOnnx`, podklasa z tymi samymi wagami) liczy widmo splotem cos/sin, a pooling częstotliwości robi ręcznie.
+  Pułapka: dzielenie całkowite w ONNX obcina do zera, więc w śledzonym kodzie nie używaj `-(-a // b)`.
+  Polecenie eksportu i testy są w `models/README.md`.
+- Na samych zerach Mother Voice daje szum zaokrągleń (normalizacja per klip). Dlatego próbne uruchomienie w `ModelRegistry`
+  i test zgodności w `export_onnx.py` używają cichego szumu. Do modelu cisza i tak nie trafia, bo odcina ją VAD.
 
 ## Stan na 2026-11-02
-- `feat/android-app` (HEAD `e97afef`) jest wypchnięty. 35 testów przechodzi, lint bez błędów.
-  Na emulatorze z Androidem 16 przeszedł test E2E z atrapą komunikatora: oba nagrania działają, baner się pokazuje, mikrofon jest zwalniany.
-- **PR jeszcze nie istnieje.** Strona compare z wypełnionym tytułem i opisem była otwarta w przeglądarce
-  (opis: `C:\Users\Ignacy\AppData\Local\Temp\vox_pr_body.md`). PR ma być ready for review, nie draft.
-- **Jan wypchnął do `main` model `b9aa4c9`** („Mother Voice v1”). Szczegóły w `INTEGRATION.md` na main.
-  Pliki: `models/mother-voice-v1/best.pt`, `scripts/mother_voice.py`, `scripts/predict_mother.py`,
-  `scripts/test_mother.py`, `requirements.txt`, raporty dev/test, a także root `.gitignore` i zmieniony `README.md`.
-- Niesprawdzone: prawdziwa rozmowa WhatsApp na prawdziwym telefonie. Do sprawdzenia też, czy odtwarzanie
-  wiadomości głosowej w WhatsApp nie włącza `MODE_IN_COMMUNICATION`.
+- Gałąź `feat/android-app` ma zmergowany `main` (model Jana) i wpięty Mother Voice. Testy:
+  - 35 testów JVM przechodzi, lint pokazuje 0 błędów;
+  - `test_mother_voice_onnx.py` (PyTorch kontra wersja eksportowalna) przechodzi;
+  - `ModelRegistryTest` na emulatorze z Androidem 16 daje te same wyniki co PyTorch (0,8213 i 0,0517, tolerancja 1e-3);
+  - symulacja WAV w aplikacji: model się ładuje, ryzyko eskaluje.
+- Czas inferencji to 14 ms na okno na PC. Na emulatorze wychodziło 450 ms przy lekkim obciążeniu i 1,9 s przy swapowaniu (AVD ma 2 GB RAM).
+  **Do zmierzenia na prawdziwym telefonie**: ekran Debug pokazuje `czas`. Budżet to krok okna, czyli 1 s.
+- **PR jeszcze nie istnieje.** `gh` nie jest zainstalowane, więc PR tworzy się przez stronę compare na GitHubie.
+  Opis PR trzeba uzupełnić o Mother Voice.
+- Niesprawdzone:
+  - prawdziwa rozmowa WhatsApp na telefonie (test wykonalności z README);
+  - czy notatka głosowa WhatsApp włącza `MODE_IN_COMMUNICATION`;
+  - jak model radzi sobie z dźwiękiem z mikrofonu przy rozmowie na głośniku. Jan trenował na kodekach,
+    ale nie na pogłosie pokoju, i sam pisze, że ocena na prawdziwych rozmowach jest jeszcze do zrobienia.
 
-## Następny krok: wpięcie Mother Voice v1 jako `voice_clone`
-Fakty o modelu (z kodu Jana):
-- `MotherVoice()` bez argumentów przyjmuje wejście `[batch, 48000]` (3 s, 16 kHz). W środku: STFT
-  (n_fft 512, hop 160, hann) → log-power → normalizacja per klip → CNN.
-  Wyjście to **jeden logit o kształcie `[batch]`** (po `squeeze(1)`), więc 1-D, a nie `[1, 1]`.
-- Checkpoint to `torch.load(..., weights_only=True)` → dict z kluczami `model` (state_dict), `config`
-  (`crop_seconds`=3, `name`) i `thresholds` (`eer`≈0.5723, `low_fpr`).
-- Wynik nie jest skalibrowanym prawdopodobieństwem. Jan wprost zastrzega, że nie wolno pokazywać „99% pewności”.
-  Okna z RMS < 1e-4 to brak sygnału, a nie „prawdziwy głos”.
-
-Plan:
-1. Zmergować `origin/main` do `feat/android-app`. Konflikt będzie w `README.md` (połączyć: nasza treść
-   plus sekcja o modelu i link do `INTEGRATION.md`). Root `.gitignore` od Jana nie koliduje z naszymi.
-2. `export_onnx.py`: przy `--state-dict` czytać klucz `model` z checkpointu (dziś szuka tylko `state_dict`),
-   a próg brać z `thresholds.eer`, jeśli nie podano `--threshold`. Uruchomić z
-   `--task voice_clone --code-dir scripts --model-class mother_voice:MotherVoice
-   --state-dict models/mother-voice-v1/best.pt --window-seconds 3 --output-type logits --version mother-voice-v1`.
-3. Ryzyko: `torch.stft(return_complex=True)` + `.abs()` może nie przejść klasycznego eksportera ONNX
-   (liczby zespolone). Wtedy spróbować `dynamo=True` albo opakować model i policzyć STFT jako `conv1d`
-   ze stałymi jądrami sin/cos (to samo co `torch.stft` z `center=True`, padding reflect). Zgodność z
-   PyTorch musi przejść test w skrypcie (`--atol`). Sprawdzić też, czy ORT Android 1.22 obsługuje użyte operatory.
-4. W aplikacji okno modelu wynosi 3 s z bufora 4 s (`ScoreMath.tail`), więc pipeline nie wymaga zmian. Usunąć atrapę
-   `voice_clone.onnx/json` i wrzucić nowy model. Sprawdzić rozmiar APK, czas inferencji na ekranie Debug
-   i `ModelRegistryTest`.
-5. Teksty banera/UI: nie pokazywać wyniku jako procentu pewności. Zostawić poziomy OK/WARN/DANGER.
-6. `scam` zostaje atrapą, dopóki nie będzie modelu. Otwarte pytanie z planu: czy będzie na audio, czy na tekście (wtedy potrzebne ASR).
-7. Po każdym kroku: testy, lint, commit, push. Potem zaktualizować opis PR albo stworzyć PR, jeśli go nie ma.
+## Co dalej
+1. Test na prawdziwym telefonie: rozmowa WhatsApp na głośniku, a potem nagranie syntetyczne puszczone z drugiego telefonu.
+   Patrzymy na wyniki na ekranie Debug i na liczbę fałszywych alarmów przy prawdziwym głosie.
+2. Model `scam`: ustalić z Janem, czy będzie działał na audio, czy na tekście (wtedy potrzebne ASR: Whisper przez sherpa-onnx).
+3. Po nowym checkpoincie powtórzyć eksport (`models/README.md`), `connectedDebugAndroidTest`, commit i push.

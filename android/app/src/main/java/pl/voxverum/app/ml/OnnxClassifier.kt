@@ -54,10 +54,17 @@ class OnnxClassifier(
     }
 }
 
-/** Używany, gdy w assets nie ma modelu dla zadania: zawsze zwraca 0, więc nigdy nie alarmuje. */
+/**
+ * Używany, gdy w assets nie ma modelu dla zadania: zawsze zwraca 0, więc nigdy nie alarmuje.
+ * To nie atrapa (nie udaje wyników), dlatego [isMock] = false. UI rozpoznaje go po [VERSION].
+ */
 class MissingModelClassifier(override val task: Task) : AudioClassifier {
-    override val version = "missing"
+    override val version = VERSION
     override val threshold = 1f
-    override val isMock = true
+    override val isMock = false
     override fun classify(window: FloatArray) = 0f
+
+    companion object {
+        const val VERSION = "missing"
+    }
 }
