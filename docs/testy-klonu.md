@@ -33,6 +33,17 @@ Scenariusz rozmowy (`scenariusz.py`): sygnał wołania 5 s, potem prawdziwy gło
 rozmowę, wszystko przez kanał `glosnik`. Wołanie zostaje pominięte, prawdziwy głos dostaje OK, a klon XTTS
 przez całe 18 s ma wynik 0,000 i aplikacja zostaje na OK.
 
+Rozmowa na zmianę (właściciel ok. 2,5 s przy mikrofonie, potem klon przez głośnik, 6 wymian):
+
+| Klon | Okna ≥ próg | Wynik aplikacji |
+|---|---|---|
+| Chatterbox | 19% (bez głosu właściciela było ok. 100%) | czerwony alarm po 19 s |
+| XTTS | 0% | OK |
+
+Głos właściciela w tym samym oknie rozcieńcza sygnał klonu, więc alarm przychodzi później. Jeden mikrofon nie pozwala
+oddzielić rozmówcy od właściciela. Pomóc mogłoby ocenianie tylko fragmentów, w których mówi rozmówca (diaryzacja
+albo wzór głosu właściciela zapisany przy konfiguracji), ale to temat na później.
+
 ### Wnioski
 - **Fałszywych alarmów na prawdziwym głosie nie było**, także po symulacji głośnika. To jednak tylko 12 okien
   jednej osoby, więc za mało, żeby mówić o odsetku fałszywych alarmów.

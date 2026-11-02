@@ -84,6 +84,12 @@ Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. 
   - **XTTS: 0/6, nie jest wykrywany wcale**, choć podobieństwo mówcy do oryginału wynosi 0,888.
   - Dane (wideo, klony, wyniki) leżą **tylko** w `C:\Users\Ignacy\voxtest` (poza repo). **Nie commitować i nie
     wysyłać.** Środowiska `env-tools`, `env-xtts` i `env-chatterbox` też tam są.
+- UI (sprawdzone na emulatorze w trybie ciemnym przy czcionce 150%): własna ikona adaptacyjna (`mipmap-anydpi-v26`,
+  bo AAPT wymaga `-v26`; ostrzeżenie lint ObsoleteSdkInt jest fałszywe), motyw dzień/noc z ekranem startowym (`values-v31`)
+  i `enableEdgeToEdge`, bez którego ikony paska stanu znikały w trybie ciemnym.
+- Rozmowa na zmianę (właściciel + klon Chatterbox): czerwony alarm dopiero po 19 s, bo głos właściciela rozcieńcza okna.
+- Emulator (Medium_Phone_API_36.1) jest bardzo wolny: system_server zajmuje 100%, a start aplikacji trwa 20–40 s.
+  Czas startu trzeba mierzyć na telefonie. Uruchamiaj go z `-memory 3072 -cores 4`, a po teście go zamknij.
 - Testy: 40 JVM, lint 0 błędów. `ModelRegistryTest` (zgodność z PyTorch na urządzeniu) przeszedł 2026-11-02.
 - Niesprawdzone: prawdziwa rozmowa na telefonie z nową wersją, czas inferencji na telefonie, RVC (konwersja głosu na żywo).
 - Komputer: 16 GB RAM. Ciężkie rzeczy (klonowanie, Gradle, emulator) uruchamiaj po kolei, a ONNX z 2 wątkami.
