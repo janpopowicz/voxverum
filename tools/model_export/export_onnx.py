@@ -14,6 +14,9 @@ Przykład:
       --output-type logits --positive-index 1 --threshold 0.7 --version 2026.11.1 \
       --wav probki/prawdziwy.wav probki/klon.wav
 
+Mother Voice v1 od Jana (model w wersji eksportowalnej, próg z checkpointu):
+  tools/model_export/.venv/Scripts/python tools/model_export/export_onnx.py       --task voice_clone --code-dir scripts --model-class mother_voice_onnx:MotherVoiceOnnx       --state-dict models/mother-voice-v1/best.pt --window-seconds 3 --output-type logits       --version mother-voice-v1
+
 Bez --out-dir pliki trafiają od razu do android/app/src/main/assets/models/.
 Do sprawdzenia samego skryptu bez prawdziwego modelu: --self-test.
 """
@@ -53,7 +56,11 @@ def load_model(args: argparse.Namespace) -> torch.nn.Module:
         model = cls(**json.loads(args.model_kwargs))
         if args.state_dict:
             state = torch.load(args.state_dict, map_location="cpu", weights_only=True)
-            state = state.get("state_dict", state) if isinstance(state, dict) else state
+            if isinstance(state, dict):
+                # Checkpoint z treningu (np. Mother Voice): wagi pod "model", próg z dev w "thresholds".
+                if args.threshold is None:
+                    args.threshold = state.get("thresholds", {}).get("eer")
+                state = state.get("state_dict", state.get("model", state))
             model.load_state_dict(state)
         return model
     raise SystemExit("Podaj --torchscript, --pickle, --model-class albo --self-test")
@@ -135,7 +142,7 @@ def main() -> None:
     p.add_argument("--window-seconds", type=float, default=4.0)
     p.add_argument("--output-type", choices=["logits", "probability"], default="logits")
     p.add_argument("--positive-index", type=int, default=1, help="indeks klasy 'klon'/'wyłudzenie' w wyjściu")
-    p.add_argument("--threshold", type=float, default=0.7)
+    p.add_argument("--threshold", type=float, help="domyślnie thresholds.eer z checkpointu, a bez niego 0.7")
     p.add_argument("--version", default="dev")
     p.add_argument("--input-name", default="audio")
     p.add_argument("--output-name", default="score")
@@ -149,22 +156,31 @@ def main() -> None:
     n = int(args.window_seconds * SAMPLE_RATE)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     onnx_path = args.out_dir / f"{args.task}.onnx"
+    # Najpierw plik tymczasowy: nieudany test zgodności nie może zostawić w aplikacji nowego .onnx ze starym .json.
+    tmp_path = args.out_dir / f"{args.task}.onnx.tmp"
 
     try:
         model = load_model(args)
     except ModuleNotFoundError as e:
         raise SystemExit(f"Nie znaleziono kodu modelu ({e}). Wskaż katalog z kodem przez --code-dir.") from e
     model.eval()
-    export(model, onnx_path, n, args.input_name, args.output_name)
-    print(f"Wyeksportowano {onnx_path} ({onnx_path.stat().st_size / 1e6:.1f} MB)")
+    if args.threshold is None:
+        args.threshold = 0.7
+    export(model, tmp_path, n, args.input_name, args.output_name)
+    print(f"Wyeksportowano model ({tmp_path.stat().st_size / 1e6:.1f} MB), sprawdzam zgodność")
 
-    # Porównanie PyTorch vs ONNX Runtime: szum, cisza i podane pliki WAV.
+    # Porównanie PyTorch vs ONNX Runtime: cichy szum tła, głośny szum i podane pliki WAV.
+    # Bez idealnej ciszy: aplikacja nie podaje jej modelom (VAD), a modele z normalizacją
+    # per klip (np. Mother Voice) dają na samych zerach wynik zależny od błędów zaokrągleń.
     rng = np.random.default_rng(0)
-    inputs = {"cisza": np.zeros(n, np.float32), "szum": (rng.standard_normal(n) * 0.1).astype(np.float32)}
+    inputs = {
+        "cichy szum": (rng.standard_normal(n) * 1e-3).astype(np.float32),
+        "szum": (rng.standard_normal(n) * 0.1).astype(np.float32),
+    }
     for wav in args.wav:
         inputs[wav.name] = last_window(read_wav_16k(wav), n)
 
-    session = ort.InferenceSession(str(onnx_path))
+    session = ort.InferenceSession(str(tmp_path))
     worst = 0.0
     for name, x in inputs.items():
         with torch.no_grad():
@@ -176,7 +192,9 @@ def main() -> None:
         worst = max(worst, diff)
         prob = to_probability(got, args.output_type, args.positive_index)
         print(f"  {name:>24}: p={prob:.3f}  max|torch-onnx|={diff:.2e}")
+    del session  # Windows nie pozwoli podmienić otwartego pliku
     if worst > args.atol:
+        tmp_path.unlink()
         raise SystemExit(f"Wyniki PyTorch i ONNX różnią się o {worst:.2e} > {args.atol:.0e}")
 
     spec = {
@@ -191,9 +209,10 @@ def main() -> None:
         "positive_index": args.positive_index,
         "threshold": args.threshold,
     }
+    tmp_path.replace(onnx_path)
     spec_path = args.out_dir / f"{args.task}.json"
     spec_path.write_text(json.dumps(spec, indent=2) + "\n")
-    print(f"Zapisano {spec_path}. Zgodność OK (max różnica {worst:.2e}).")
+    print(f"Zapisano {onnx_path} i {spec_path}. Zgodność OK (max różnica {worst:.2e}).")
 
 
 if __name__ == "__main__":
