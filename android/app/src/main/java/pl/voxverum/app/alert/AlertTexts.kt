@@ -40,13 +40,13 @@ object AlertTexts {
         return when {
             clone == RiskLevel.DANGER && scam == RiskLevel.DANGER -> OverlayModel(
                 Tone.DANGER,
-                "Sklonowany głos i próba wyłudzenia!",
-                "Rozłącz się. Oddzwoń na znany numer i zapytaj o hasło rodzinne.$suffix",
+                "Możliwy klon głosu i próba wyłudzenia",
+                "Nie przekazuj pieniędzy ani danych. Potwierdź prośbę, dzwoniąc na znany numer.$suffix",
             )
             clone == RiskLevel.DANGER -> OverlayModel(
                 Tone.DANGER,
                 "Głos może być sklonowany!",
-                "Zapytaj o Kod Rozmowy albo hasło rodzinne. W razie wątpliwości rozłącz się i oddzwoń.$suffix",
+                "Model wykrył cechy syntetycznego głosu. W razie wątpliwości potwierdź tożsamość, dzwoniąc na znany numer.$suffix",
             )
             scam == RiskLevel.DANGER -> OverlayModel(
                 Tone.DANGER,
@@ -56,7 +56,7 @@ object AlertTexts {
             risk.overall == RiskLevel.WARN -> OverlayModel(
                 Tone.WARN,
                 "Uwaga: coś się nie zgadza",
-                "Zapytaj o Kod Rozmowy albo hasło rodzinne.$suffix",
+                "Analiza wykryła podejrzany sygnał. Jeśli prośba dotyczy pieniędzy lub danych, potwierdź ją innym kanałem.$suffix",
             )
             else -> OverlayModel(
                 Tone.OK,

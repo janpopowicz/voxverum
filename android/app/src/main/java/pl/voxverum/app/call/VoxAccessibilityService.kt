@@ -110,6 +110,7 @@ class VoxAccessibilityService : AccessibilityService() {
         sessionJob = null
         session?.stop()
         session = null
+        if (::alerter.isInitialized) alerter.reset()
         VoxState.setScores(null)
         VoxState.setRisk(null)
         if (::overlay.isInitialized) overlay.hide()

@@ -29,6 +29,15 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
 - **voice_clone** to model **Mother Voice v1** od Jana (okno 3 s, próg 0,572 z dev). **scam** nie ma jeszcze modelu,
   więc nigdy nie alarmuje, a ekran Ochrona to pokazuje. Wynik modelu nie jest procentem pewności, dlatego baner pokazuje
   tylko poziom (zielony, żółty, czerwony). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
+- Przed modelem odrzucamy ciszę i okna ze stałym tonem (np. sygnałem wołania lub brumem).
+  Filtr sprawdza ostatnie 3 s, czyli fragment oceniany przez Mother Voice. Pominięte okno nie jest wynikiem „bezpieczny”.
+- Czerwony alarm wymaga co najmniej dwóch wyników ponad progiem w ostatnich trzech analizowanych oknach.
+  Kolejne niskie wyniki obniżają poziom z powrotem; alarm nie zatrzaskuje się do końca rozmowy.
+  Powiadomienie znika po obniżeniu ryzyka lub zakończeniu rozmowy, a nowa eskalacja może ponownie ostrzec.
+  Historia zachowuje najwyższy poziom osiągnięty podczas rozmowy.
+- Filtr tonów ogranicza znany fałszywy alarm opisany w [zgłoszeniu #2](https://github.com/janpopowicz/voxverum/issues/2).
+  Nie potwierdza to jeszcze skuteczności modelu dla prawdziwej rozmowy nagrywanej z głośnika telefonu.
+  W wersji debug ekran Debug pokazuje pominięte tony, a `adb logcat -s VoxVerum` wyniki każdego okna bez audio.
 
 ## Uruchamianie
 

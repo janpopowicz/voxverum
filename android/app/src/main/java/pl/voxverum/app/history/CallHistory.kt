@@ -47,7 +47,7 @@ object CallHistory {
             startedAtMs = call.startedAtMs,
             durationSec = (System.currentTimeMillis() - call.startedAtMs) / 1000,
             app = call.packageName,
-            level = risk.overall,
+            level = risk.peakOverall,
             clonePeak = risk.clone.peak,
             scamPeak = risk.scam.peak,
             windows = risk.windows,

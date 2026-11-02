@@ -48,4 +48,13 @@ class AlertTextsTest {
         assertTrue(warn.detail.endsWith("(modele testowe)"))
         assertEquals(Tone.OK, AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false).tone)
     }
+
+    @Test
+    fun `warnings do not require a conversation code or family password`() {
+        for (clone in RiskLevel.entries) for (scam in RiskLevel.entries) {
+            val detail = AlertTexts.overlay(risk(clone, scam), false, false).detail
+            assertFalse(detail.contains("Kod Rozmowy"))
+            assertFalse(detail.contains("hasło rodzinne"))
+        }
+    }
 }
