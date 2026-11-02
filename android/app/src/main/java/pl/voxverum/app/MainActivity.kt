@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Ikony paska stanu w kolorze zależnym od trybu jasnego/ciemnego (bez tego w trybie ciemnym znikały).
+        enableEdgeToEdge()
         setContent {
             VoxTheme {
                 val consent by vm.consent.collectAsStateWithLifecycle()
