@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import pl.voxverum.app.history.CallRecord
 import java.text.DateFormat
 import java.util.Date
-import kotlin.math.roundToInt
 
 @Composable
 fun HistoryScreen(records: List<CallRecord>, onClear: () -> Unit) {
@@ -61,10 +60,6 @@ private fun RecordRow(r: CallRecord) {
                 Text(
                     "${r.durationSec / 60} min ${r.durationSec % 60} s · ${r.level.label()}" +
                         if (r.mockModels) " · modele testowe" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    "Maks. klon: ${(r.clonePeak * 100).roundToInt()}% · maks. wyłudzenie: ${(r.scamPeak * 100).roundToInt()}%",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

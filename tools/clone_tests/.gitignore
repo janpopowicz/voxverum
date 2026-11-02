@@ -1,0 +1,8 @@
+# Nagrania głosu i klony nigdy nie trafiają do repo.
+*.wav
+*.mp4
+*.m4a
+*.mp3
+*.jsonl
+dane/
+env-*/

@@ -58,10 +58,12 @@ object AlertTexts {
                 "Uwaga: coś się nie zgadza",
                 "Zapytaj o Kod Rozmowy albo hasło rodzinne.$suffix",
             )
+            // Nie na zielono: brak oznak klonu nie potwierdza tożsamości, a detektor nie łapie
+            // każdego generatora (klon XTTS dostaje wynik bliski 0, patrz docs/testy-klonu.md).
             else -> OverlayModel(
-                Tone.OK,
-                "Nie wykryto zagrożenia",
-                "Głos to nie dowód tożsamości.$suffix",
+                Tone.NEUTRAL,
+                "Brak oznak klonu głosu",
+                "To nie potwierdza, kto mówi. Przy prośbie o pieniądze zapytaj o Kod Rozmowy.$suffix",
             )
         }
     }

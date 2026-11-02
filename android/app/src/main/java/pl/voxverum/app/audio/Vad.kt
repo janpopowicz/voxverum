@@ -38,8 +38,11 @@ object Vad {
     private const val MIN_BIN = 3
     /** Udział szczytu (±1 prążek) w energii ramki, od którego ramka wygląda na ton. */
     private const val PEAK_SHARE = 0.5f
-    /** 15 ramek po 20 ms = 300 ms tego samego tonu. */
-    const val TONE_RUN_FRAMES = 15
+    /**
+     * 25 ramek po 20 ms = 500 ms tego samego tonu. Przy 300 ms przeciągnięte samogłoski prawdziwej mowy
+     * (zwłaszcza z pogłosem) odpadały w do 40% okien; sygnał wołania trwa 1 s, więc 500 ms go nadal łapie.
+     */
+    const val TONE_RUN_FRAMES = 25
 
     fun rmsDb(samples: FloatArray, from: Int = 0, to: Int = samples.size): Float {
         if (to <= from) return SILENCE_DB

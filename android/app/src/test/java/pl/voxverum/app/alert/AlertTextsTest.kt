@@ -46,6 +46,9 @@ class AlertTextsTest {
         assertEquals(Tone.WARN, warn.tone)
         assertFalse("wyniki nie są skalibrowane", warn.detail.contains("%"))
         assertTrue(warn.detail.endsWith("(modele testowe)"))
-        assertEquals(Tone.OK, AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false).tone)
+        // Bez zieleni: brak oznak klonu nie potwierdza tożsamości.
+        val ok = AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false)
+        assertEquals(Tone.NEUTRAL, ok.tone)
+        assertTrue(ok.detail.contains("Kod Rozmowy"))
     }
 }
