@@ -8,7 +8,7 @@ i puszcza go przez dwa modele AI **na telefonie**:
 1. **voice_clone**: czy głos rozmówcy może być sklonowany,
 2. **scam**: czy rozmowa wygląda na próbę wyłudzenia.
 
-Wynik widać na bieżąco na banerze nad rozmową (zielony, żółty albo czerwony), z wibracją
+Wynik widać na bieżąco na banerze nad rozmową (granatowy: brak oznak klonu, żółty: uwaga, czerwony: alarm), z wibracją
 i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. Biznesplan: `VoxVerum_biznesplan.pdf`.
 
 ## Struktura repo
@@ -28,7 +28,8 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
 - Wykrycie rozmowy: zdarzenia z WhatsApp (okno lub powiadomienie o połączeniu) + tryb audio `MODE_IN_COMMUNICATION`.
 - **voice_clone** to model **Mother Voice v1** od Jana (okno 3 s, próg 0,572 z dev). **scam** nie ma jeszcze modelu,
   więc nigdy nie alarmuje, a ekran Ochrona to pokazuje. Wynik modelu nie jest procentem pewności, dlatego baner pokazuje
-  tylko poziom (zielony, żółty, czerwony). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
+  tylko poziom. Zieleni nie ma, bo brak oznak klonu nie potwierdza tożsamości (klon XTTS przechodzi, patrz
+  [docs/testy-klonu.md](docs/testy-klonu.md)). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
 
 ## Uruchamianie
 

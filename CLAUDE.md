@@ -69,24 +69,29 @@ Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. 
 - Na samych zerach Mother Voice daje szum zaokrągleń (normalizacja per klip). Dlatego próbne uruchomienie w `ModelRegistry`
   i test zgodności w `export_onnx.py` używają cichego szumu. Do modelu cisza i tak nie trafia, bo odcina ją VAD.
 
-## Stan na 2026-11-02
-- Gałąź `feat/android-app` ma zmergowany `main` (model Jana) i wpięty Mother Voice. Testy:
-  - 35 testów JVM przechodzi, lint pokazuje 0 błędów;
-  - `test_mother_voice_onnx.py` (PyTorch kontra wersja eksportowalna) przechodzi;
-  - `ModelRegistryTest` na emulatorze z Androidem 16 daje te same wyniki co PyTorch (0,8213 i 0,0517, tolerancja 1e-3);
-  - symulacja WAV w aplikacji: model się ładuje, ryzyko eskaluje.
-- Czas inferencji to 14 ms na okno na PC. Na emulatorze wychodziło 450 ms przy lekkim obciążeniu i 1,9 s przy swapowaniu (AVD ma 2 GB RAM).
-  **Do zmierzenia na prawdziwym telefonie**: ekran Debug pokazuje `czas`. Budżet to krok okna, czyli 1 s.
-- **PR jeszcze nie istnieje.** `gh` nie jest zainstalowane, więc PR tworzy się przez stronę compare na GitHubie.
-  Opis PR trzeba uzupełnić o Mother Voice.
-- Niesprawdzone:
-  - prawdziwa rozmowa WhatsApp na telefonie (test wykonalności z README);
-  - czy notatka głosowa WhatsApp włącza `MODE_IN_COMMUNICATION`;
-  - jak model radzi sobie z dźwiękiem z mikrofonu przy rozmowie na głośniku. Jan trenował na kodekach,
-    ale nie na pogłosie pokoju, i sam pisze, że ocena na prawdziwych rozmowach jest jeszcze do zrobienia.
+## Stan na 2026-11-03
+- `main` ma aplikację z Mother Voice (PR #1 zmergowany). Gałąź **`fix/falszywy-alarm-tony`** (wypchnięta, bez PR) to
+  poprawka do issue #2 (fałszywy alarm w prawdziwej rozmowie) i do testu na klonie:
+  - VAD odrzuca stałe tony (sygnał wołania, brum), które Mother Voice ocenia na 1,0. Ton to ≥ 500 ms tego samego prążka.
+    Przy 300 ms odpadało do 40% okien prawdziwej mowy.
+  - VAD patrzy na ostatnie 3 s, czyli na to samo co model. Debug pokazuje pominięte okna, a wersja debug loguje
+    `okno mowa= ton= klon=`.
+  - UI: w trakcie rozmowy nie ma zieleni (OK to granatowe „Brak oznak klonu głosu”), w historii nie ma procentów,
+    baner ma 18/15 sp i `accessibilityLiveRegion`.
+- **Test na klonie** (`docs/testy-klonu.md`, narzędzia w `tools/clone_tests`):
+  - prawdziwy głos Ignacego: 0 alarmów;
+  - Chatterbox: wykrywany;
+  - **XTTS: 0/6, nie jest wykrywany wcale**, choć podobieństwo mówcy do oryginału wynosi 0,888.
+  - Dane (wideo, klony, wyniki) leżą **tylko** w `C:\Users\Ignacy\voxtest` (poza repo). **Nie commitować i nie
+    wysyłać.** Środowiska `env-tools`, `env-xtts` i `env-chatterbox` też tam są.
+- Testy: 40 JVM, lint 0 błędów. `ModelRegistryTest` (zgodność z PyTorch na urządzeniu) przeszedł 2026-11-02.
+- Niesprawdzone: prawdziwa rozmowa na telefonie z nową wersją, czas inferencji na telefonie, RVC (konwersja głosu na żywo).
+- Komputer: 16 GB RAM. Ciężkie rzeczy (klonowanie, Gradle, emulator) uruchamiaj po kolei, a ONNX z 2 wątkami.
+  Przed startem sprawdź wolny RAM.
 
 ## Co dalej
-1. Test na prawdziwym telefonie: rozmowa WhatsApp na głośniku, a potem nagranie syntetyczne puszczone z drugiego telefonu.
-   Patrzymy na wyniki na ekranie Debug i na liczbę fałszywych alarmów przy prawdziwym głosie.
-2. Model `scam`: ustalić z Janem, czy będzie działał na audio, czy na tekście (wtedy potrzebne ASR: Whisper przez sherpa-onnx).
-3. Po nowym checkpoincie powtórzyć eksport (`models/README.md`), `connectedDebugAndroidTest`, commit i push.
+Pełny plan testów jest w `docs/testy-klonu.md`. Najważniejsze punkty:
+1. Telefon: rozmowa na głośniku z `adb logcat -s VoxVerum`. Potem kolega puszcza klony Chatterbox i XTTS do telefonu.
+2. Jan: nieznane generatory (XTTS przechodzi w 100%), RVC, więcej prawdziwych głosów, prawdziwy kanał głośnika.
+3. PR z `fix/falszywy-alarm-tony` do `main` z „Closes #2”, po teście na telefonie.
+4. Model `scam`: ustalić z Janem, czy będzie działał na audio, czy na tekście (wtedy potrzebne ASR).
