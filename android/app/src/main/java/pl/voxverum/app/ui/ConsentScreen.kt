@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,6 +21,12 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ConsentScreen(onAccept: () -> Unit) {
+    // Surface ustawia kolor tekstu z motywu. Bez niej tekst był czarny także w trybie ciemnym.
+    Surface(Modifier.fillMaxSize()) { ConsentContent(onAccept) }
+}
+
+@Composable
+private fun ConsentContent(onAccept: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()

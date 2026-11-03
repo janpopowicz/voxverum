@@ -97,6 +97,13 @@ Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. 
   w trakcie rozmowy, tylko powiadomienia `CATEGORY_CALL`, alarm widoczny przy wyciszeniu, VAD poza głównym wątkiem.
   Gałąź ma scalony `main` z #3 Jana (alarm nie zatrzaskuje się, teksty bez Kodu Rozmowy).
 - Ignacy pozwolił poprawiać kod Jana, gdy jest w nim błąd.
+- **E2E na emulatorze (2026-11-03, `tools/fake_whatsapp`)**: bez zgody rozmowa jest wykrywana, ale mikrofon się nie
+  włącza; akceptacja zgody w trakcie rozmowy uruchamia analizę; wyłączenie i włączenie ochrony w trakcie rozmowy
+  zwalnia i znowu otwiera mikrofon; po rozłączeniu mikrofon jest zwalniany; VoxVerum nie jest wyciszany obok
+  `VOICE_COMMUNICATION`. Emulator działał bez dźwięku (`-no-audio`), więc model nie dostał mowy.
+  Znaleziony błąd: ekran zgody miał czarny tekst w trybie ciemnym (brak `Surface`), poprawione.
+- Znane ograniczenie: gdy usługa ułatwień dostępu zrestartuje się w trakcie rozmowy, ochrona wraca dopiero
+  przy następnym zdarzeniu z WhatsApp. `uiautomator dump` powoduje taki restart, więc nie używaj go w testach.
 - Emulator (Medium_Phone_API_36.1) jest bardzo wolny: system_server zajmuje 100%, a start aplikacji trwa 20–40 s.
   Czas startu trzeba mierzyć na telefonie. Uruchamiaj go z `-memory 3072 -cores 4`, a po teście go zamknij.
 - Testy JVM i lint przechodzą (2026-11-03). `ModelRegistryTest` (zgodność z PyTorch na urządzeniu) przeszedł 2026-11-02.

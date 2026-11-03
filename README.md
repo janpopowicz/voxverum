@@ -82,6 +82,7 @@ adb shell dumpsys audio | grep -E "pack:(com.whatsapp|pl.voxverum.app)"
 Szukaj `silenced:false` przy `pl.voxverum.app`. Na emulatorze z Androidem 16 i atrapą komunikatora
 (`MODE_IN_COMMUNICATION` + mikrofon `VOICE_COMMUNICATION`) oba nagrania działają równolegle, baner się pokazuje,
 a po rozłączeniu mikrofon jest zwalniany. Na prawdziwych telefonach i z prawdziwym WhatsAppem trzeba to jeszcze potwierdzić.
+Atrapa i polecenia do powtórzenia testu: [tools/fake_whatsapp](tools/fake_whatsapp/README.md).
 
 ## Tryb symulacji
 Zakładka **Debug → Wybierz plik WAV** puszcza nagranie przez ten sam pipeline co rozmowę.
