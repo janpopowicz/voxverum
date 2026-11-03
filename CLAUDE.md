@@ -52,13 +52,16 @@ Prywatność: audio jest tylko w RAM. `allowBackup=false`, a `data_extraction_ru
 ## Modele w aplikacji
 `android/app/src/main/assets/models/<task>.onnx` + `<task>.json`, gdzie task to `voice_clone` albo `scam`.
 JSON: `task, file, version, sample_rate(16000), window_samples, input_name, output_name,
-output_type(logits|probability), positive_index, threshold`.
+output_type(logits|probability), positive_index, threshold` i opcjonalnie `lowpass_hz` (filtr Butterwortha 4. rzędu
+na wejściu modelu, `ml/LowPass.kt`, liczony od zera dla każdego okna).
 Wejście to `float32 [1, N]`, a preprocessing jest w grafie modelu. Model bierze ostatnie `window_samples` z okna 4 s (`ScoreMath.tail`).
 Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. Gdy ma dwie, liczy softmax.
 
 - **voice_clone = Mother Voice v1** od Jana (`models/mother-voice-v1/best.pt`, kod w `scripts/mother_voice.py`,
   opis w `INTEGRATION.md`). Okno 48000 próbek (3 s), wyjście to jeden logit `[1]`, próg 0,572 (`thresholds.eer` z dev).
   Wynik **nie jest skalibrowanym prawdopodobieństwem**, więc baner nie pokazuje procentów.
+  `lowpass_hz: 7000`: model reaguje na pasmo 7–8 kHz i bez filtra daje wynik ≥ progu na prawie każdym obcym
+  prawdziwym głosie (FLEURS). `ModelRegistryTest` sprawdza zgodność z PyTorch na modelu bez filtra.
 - **scam: brak modelu.** Atrapę usunęliśmy, bo reagowała na głośność i obok prawdziwego detektora dawała fałszywe alarmy.
   Brakujący model to `MissingModelClassifier`: zwraca zawsze 0, `isMock=false`, `version="missing"`.
   Ekran Ochrona pokazuje „Wykrywanie prób wyłudzenia jeszcze nie działa”.
@@ -88,9 +91,15 @@ Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. 
   bo AAPT wymaga `-v26`; ostrzeżenie lint ObsoleteSdkInt jest fałszywe), motyw dzień/noc z ekranem startowym (`values-v31`)
   i `enableEdgeToEdge`, bez którego ikony paska stanu znikały w trybie ciemnym.
 - Rozmowa na zmianę (właściciel + klon Chatterbox): czerwony alarm dopiero po 19 s, bo głos właściciela rozcieńcza okna.
+- **Obce prawdziwe głosy (FLEURS, 338 nagrań) dają masę fałszywych alarmów**: bez filtra 17% okien `przy_mik` ≥ progu
+  i czerwony w 82% minutowych rozmów. Z filtrem 7 kHz: 2% okien, 15% rozmów. Szczegóły i tabele w `docs/testy-klonu.md`.
+- Po przeglądzie kodu (2026-11-03): alarm z dwóch nienakładających się trafień, przełącznik ochrony i zgoda działają
+  w trakcie rozmowy, tylko powiadomienia `CATEGORY_CALL`, alarm widoczny przy wyciszeniu, VAD poza głównym wątkiem.
+  Gałąź ma scalony `main` z #3 Jana (alarm nie zatrzaskuje się, teksty bez Kodu Rozmowy).
+- Ignacy pozwolił poprawiać kod Jana, gdy jest w nim błąd.
 - Emulator (Medium_Phone_API_36.1) jest bardzo wolny: system_server zajmuje 100%, a start aplikacji trwa 20–40 s.
   Czas startu trzeba mierzyć na telefonie. Uruchamiaj go z `-memory 3072 -cores 4`, a po teście go zamknij.
-- Testy: 40 JVM, lint 0 błędów. `ModelRegistryTest` (zgodność z PyTorch na urządzeniu) przeszedł 2026-11-02.
+- Testy JVM i lint przechodzą (2026-11-03). `ModelRegistryTest` (zgodność z PyTorch na urządzeniu) przeszedł 2026-11-02.
 - Niesprawdzone: prawdziwa rozmowa na telefonie z nową wersją, czas inferencji na telefonie, RVC (konwersja głosu na żywo).
 - Komputer: 16 GB RAM. Ciężkie rzeczy (klonowanie, Gradle, emulator) uruchamiaj po kolei, a ONNX z 2 wątkami.
   Przed startem sprawdź wolny RAM.
@@ -98,6 +107,8 @@ Gdy wyjście ma jedną wartość, przy `logits` aplikacja liczy z niej sigmoid. 
 ## Co dalej
 Pełny plan testów jest w `docs/testy-klonu.md`. Najważniejsze punkty:
 1. Telefon: rozmowa na głośniku z `adb logcat -s VoxVerum`. Potem kolega puszcza klony Chatterbox i XTTS do telefonu.
-2. Jan: nieznane generatory (XTTS przechodzi w 100%), RVC, więcej prawdziwych głosów, prawdziwy kanał głośnika.
-3. PR z `fix/falszywy-alarm-tony` do `main` z „Closes #2”, po teście na telefonie.
-4. Model `scam`: ustalić z Janem, czy będzie działał na audio, czy na tekście (wtedy potrzebne ASR).
+2. Jan: fałszywe alarmy na obcych głosach (FLEURS) i pasmo 7–8 kHz, nieznane generatory (XTTS), RVC, prawdziwy kanał głośnika.
+   Nowy model testować tym samym `ocena.py` na FLEURS i klonach, zanim trafi do aplikacji.
+3. Aplikacja: pomijać okna z głosem właściciela (wzór głosu zapisany przy konfiguracji).
+4. PR z `fix/falszywy-alarm-tony` do `main` z „Closes #2”, po teście na telefonie.
+5. Model `scam`: ustalić z Janem, czy będzie działał na audio, czy na tekście (wtedy potrzebne ASR).

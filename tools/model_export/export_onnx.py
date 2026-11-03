@@ -143,6 +143,8 @@ def main() -> None:
     p.add_argument("--output-type", choices=["logits", "probability"], default="logits")
     p.add_argument("--positive-index", type=int, default=1, help="indeks klasy 'klon'/'wyłudzenie' w wyjściu")
     p.add_argument("--threshold", type=float, help="domyślnie thresholds.eer z checkpointu, a bez niego 0.7")
+    p.add_argument("--lowpass-hz", type=float,
+                   help="filtr dolnoprzepustowy przed modelem w aplikacji (Mother Voice v1: 7000, patrz docs/testy-klonu.md)")
     p.add_argument("--version", default="dev")
     p.add_argument("--input-name", default="audio")
     p.add_argument("--output-name", default="score")
@@ -209,6 +211,8 @@ def main() -> None:
         "positive_index": args.positive_index,
         "threshold": args.threshold,
     }
+    if args.lowpass_hz:
+        spec["lowpass_hz"] = args.lowpass_hz
     tmp_path.replace(onnx_path)
     spec_path = args.out_dir / f"{args.task}.json"
     spec_path.write_text(json.dumps(spec, indent=2) + "\n")

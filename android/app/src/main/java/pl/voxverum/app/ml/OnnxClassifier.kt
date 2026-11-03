@@ -22,6 +22,7 @@ class OnnxClassifier(
     override val threshold = spec.threshold
     override val isMock = spec.version.startsWith("mock")
     override val windowSamples = spec.windowSamples
+    private val lowPass = spec.lowpassHz?.let { LowPass(it, spec.sampleRate) }
 
     init {
         // Przy złym modelu zamykamy sesję od razu: konstruktor rzuci wyjątek, więc nikt inny jej nie zamknie.
@@ -39,7 +40,8 @@ class OnnxClassifier(
     }
 
     override fun classify(window: FloatArray): Float {
-        val input = ScoreMath.tail(window, spec.windowSamples)
+        val tail = ScoreMath.tail(window, spec.windowSamples)
+        val input = lowPass?.apply(tail) ?: tail
         val shape = longArrayOf(1, spec.windowSamples.toLong())
         OnnxTensor.createTensor(env, FloatBuffer.wrap(input), shape).use { tensor ->
             session.run(mapOf(spec.inputName to tensor), setOf(spec.outputName)).use { result ->

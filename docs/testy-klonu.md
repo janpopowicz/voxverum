@@ -60,6 +60,105 @@ albo wzór głosu właściciela zapisany przy konfiguracji), ale to temat na pó
   (przeciągnięte samogłoski z pogłosem). Przy 500 ms nie odpada żadne okno mowy, a sygnał wołania (1 s) nadal tak.
 - Brak zieleni w trakcie rozmowy, brak procentów w historii, większy tekst baneru i odczyt przez TalkBack.
 
+## Obce prawdziwe głosy i klony obcych głosów (2026-11-03)
+
+Pytanie: ile fałszywych alarmów daje Mother Voice v1 na prawdziwych głosach innych ludzi i czy klon XTTS
+przechodzi też przy innych głosach niż Ignacy?
+
+- **Prawdziwe głosy**: 338 nagrań polskiej mowy czytanej z FLEURS (zbiór dev, wielu mówców, różne mikrofony).
+- **Klony obcych głosów**: XTTS-v2, 8 mówców z FLEURS jako wzorzec, po 2 zdania (16 plików).
+- Ten sam pipeline co wyżej (`ocena.py`, 4 kanały). Wyniki każdego okna są w JSONL, więc reguły alarmu
+  porównujemy na tych samych wynikach modelu.
+
+### Odsetek okien z wynikiem ≥ progu (0,572)
+
+| Kanał | FLEURS prawdziwe | XTTS obcych głosów | Ignacy prawdziwy | Chatterbox (Ignacy) |
+|---|---|---|---|---|
+| czysty | **99,9%** | 42,9% | 0% | 100% |
+| whatsapp | **28,5%** | 38,1% | 0% | 100% |
+| głośnik | 0,0% | 0,0% | 0% | 39,1% |
+| przy_mik | **17,4%** | 0,0% | 0% | 100% |
+
+**Model ma bardzo dużo fałszywych alarmów na nieznanych prawdziwych głosach.** Na czystym nagraniu FLEURS
+prawie każde okno wygląda na klon. Po kodeku albo po pogłosie z szumem wciąż co 4–6 okno przekracza próg.
+Głos Ignacego nie daje żadnego trafienia, więc test na jednej osobie (wyżej) był zbyt optymistyczny.
+Trafienia skupiają się w części nagrań: w kanale `przy_mik` 198 z 337 plików nie ma żadnego trafienia, a 64 mają je
+w co najmniej połowie okien. Model reaguje więc na cechy nagrania (mikrofon, pomieszczenie, mówca), a nie na
+syntetyczność.
+
+### Reguła alarmu: „2 z 3 okien” kontra dwa niezależne trafienia
+
+Okna mają 4 s z krokiem 1 s, a model widzi ostatnie 3 s, więc trzy kolejne okna oceniają prawie ten sam dźwięk.
+„2 z 3 okien” w praktyce oznaczało „jeden fragment dźwięku”. Nowa reguła (`RiskEngine`) wymaga dwóch trafień
+odległych o co najmniej 3 okna w ostatnich 6.
+
+| Czerwony alarm (odsetek plików) | 2 z 3 | nowa reguła |
+|---|---|---|
+| FLEURS prawdziwe, przy_mik | 27,3% | **6,8%** |
+| FLEURS prawdziwe, whatsapp | 33,8% | **14,9%** |
+| FLEURS prawdziwe, czysty | 89,2% | 60,1% |
+| FLEURS prawdziwe, głośnik | 0% | 0% |
+| XTTS obcych głosów, czysty / whatsapp | 37,5% / 43,8% | 0% / 0% |
+| Chatterbox (Ignacy), wszystkie zdania po kolei, każdy kanał | alarm | alarm |
+| XTTS (Ignacy), każdy kanał | brak | brak |
+
+Pliki mają 4–20 s, a rozmowa trwa minuty. Symulacja minutowej rozmowy (60 okien prawdziwych głosów FLEURS
+sklejonych losowo) daje czerwony alarm w kanale `przy_mik` w **81%** rozmów przy nowej regule i 98% przy starej.
+Kanał `glosnik` daje 0%. Wniosek: **nowa reguła zmniejsza fałszywe alarmy, ale problemu nie rozwiązuje.**
+Przyczyna leży w modelu, nie w regule.
+
+### Na co reaguje model: pasmo powyżej 7 kHz
+`domena.py` ocenia te same 60 plików FLEURS (225 okien, czysty kanał) po jednej zmianie naraz:
+
+| Wariant | Okna ≥ progu |
+|---|---|
+| bez zmian | 100% |
+| filtr górnoprzepustowy 300 Hz | 100% |
+| głośniej o 12 dB / ciszej o 12 dB | 100% / 99% |
+| **filtr dolnoprzepustowy 7 kHz** | **21%** |
+| pasmo 300 Hz – 7 kHz | 3% |
+
+Fałszywe alarmy bierze więc głównie z wąskiego pasma 7–8 kHz, a nie z głośności ani niskich tonów. Ten sam filtr na klonach:
+
+| Okna ≥ progu (czysty kanał) | bez filtra | filtr 7 kHz |
+|---|---|---|
+| Chatterbox (Ignacy) | 100% | 100% |
+| XTTS (Ignacy) | 0% | 29% |
+| XTTS obcych głosów | 43% | 81% |
+| Ignacy prawdziwy | 0% | 0% |
+
+### Filtr 7 kHz w aplikacji (`lowpass_hz` w `voice_clone.json`)
+Pełna ocena z filtrem liczonym dla każdego okna, tak jak w telefonie (`ocena.py`, nowa reguła alarmu).
+Liczą się kanały, które słyszy aplikacja: `przy_mik` (właściciel) i `glosnik` (rozmówca).
+
+| | bez filtra | filtr 7 kHz |
+|---|---|---|
+| FLEURS prawdziwe, przy_mik: okna ≥ progu | 17,4% | **2,1%** |
+| FLEURS prawdziwe, przy_mik: minutowe rozmowy z czerwonym | 82% | **15%** |
+| FLEURS prawdziwe, głośnik | 0% | 0% |
+| Chatterbox (Ignacy), przy_mik: okna ≥ progu | 100% | 100% |
+| Chatterbox (Ignacy), głośnik: okna ≥ progu | 39% | 9% (wszystkie zdania po kolei nadal dają alarm) |
+| XTTS (Ignacy i obce głosy), przy_mik / głośnik | 0% | 0% |
+| Ignacy prawdziwy, każdy kanał | 0% | 0% |
+
+Filtr zmniejsza fałszywe alarmy na głosie właściciela ponad 5 razy, ale osłabia wykrywanie Chatterboxa przez głośnik.
+Przy 82% minutowych rozmów z fałszywym alarmem aplikacja byłaby bezużyteczna, więc filtr jest włączony.
+15% to nadal za dużo. Kanały `czysty` i `whatsapp` (bez mikrofonu) aplikacja w praktyce nie słyszy, ale tam filtr
+mało pomaga (minutowe rozmowy z alarmem: 95% i 98%), więc model trzeba poprawić u źródła.
+
+### Co to znaczy dla aplikacji
+- Rozmówca przez głośnik (kanał `glosnik`): 0 fałszywych alarmów, ale też słabe wykrywanie (Chatterbox 9–39% okien,
+  XTTS 0%).
+- **Głos właściciela przy mikrofonie** (`przy_mik`) to główne źródło fałszywych alarmów, a aplikacja słyszy go zawsze.
+  Prawdopodobnie to też tłumaczy alarm z prawdziwej rozmowy ze zgłoszenia #2, obok sygnału wołania.
+- Kierunki naprawy:
+  1. Model (Jan): trening na różnorodnych prawdziwych nagraniach z telefonów i z pogłosem (FLEURS, Common Voice,
+     nagrania przez głośnik), z losowym filtrem dolnoprzepustowym w augmentacji, i kalibracja progu na obcych
+     głosach, a nie na dev z treningu. Przed wpięciem nowego modelu: ten sam test (`ocena.py` na FLEURS).
+  2. Aplikacja: nie oceniać głosu właściciela. Przy konfiguracji zapisać jego wzór głosu (embedding mówcy,
+     np. ECAPA w ONNX) i pomijać okna, w których mówi właściciel.
+  3. Do czasu lepszego modelu czerwony alarm to tylko sygnał pomocniczy (tak mówią już teksty baneru).
+
 ## Jak powtórzyć
 ```bash
 cd C:/Users/<ty>/voxtest   # katalog POZA repo, tu leżą nagrania
@@ -77,6 +176,8 @@ env-tools/Scripts/python $T/scenariusz.py --model $M --prawdziwy dane/oryginal_2
 env-chatterbox/Scripts/python $T/podobienstwo.py dane/oryginal_24k.wav dane/klon/*.wav
 ```
 Pobierane jest ok. 5 GB modeli z HuggingFace. Klonowanie na CPU zajmuje 1–5 min na zdanie.
+FLEURS (pl_pl, dev) pobierasz z HuggingFace (`google/fleurs`, ok. 400 MB). Pełna ocena 338 plików na CPU trwa ok. 20 min.
+`domena.py --model $M pliki...` sprawdza, na co model jest czuły (filtr 300 Hz, 7 kHz, głośność).
 `ocena.py --zapisz-kanaly dir` zapisuje wersje po kanale, które można puścić w aplikacji (Debug → symulacja WAV).
 Klonuj tylko własny głos albo głos osoby, która się na to zgodziła.
 

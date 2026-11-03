@@ -8,7 +8,8 @@ Kanały:
   przy_mik   - pogłos + szum + AGC, bez kodeka: tak aplikacja słyszy właściciela telefonu
 
 Pipeline jak w aplikacji: okna 4 s co 1 s, VAD (głośność + odrzucanie stałych tonów) na ostatnich 3 s,
-model na ostatnich 3 s, RiskEngine (EMA 0.4, DANGER przy 2 z 3 okien >= progu, zatrzask).
+model na ostatnich 3 s, RiskEngine (EMA 0.4, DANGER przy dwóch trafieniach >= progu odległych o >= 3 okna
+w ostatnich 6, bez zatrzasku). --dolno HZ: filtr dolnoprzepustowy na wejściu modelu, jak w aplikacji.
 """
 from __future__ import annotations
 
@@ -165,7 +166,12 @@ class Risk:
         return self.level
 
 
-def run_app(x: np.ndarray, sess: ort.InferenceSession, n: int, threshold: float) -> dict:
+def model_lowpass(hz: float | None):
+    """Butterworth 4. rzędu jak `lowpass_hz` w .json modelu; filtr liczony osobno dla każdego okna."""
+    return butter(4, hz, "lowpass", fs=SR, output="sos") if hz else None
+
+
+def run_app(x: np.ndarray, sess: ort.InferenceSession, n: int, threshold: float, sos=None) -> dict:
     risk = Risk(threshold)
     scores, danger_at = [], None
     for end in range(4 * SR, len(x) + 1, SR):
@@ -173,6 +179,8 @@ def run_app(x: np.ndarray, sess: ort.InferenceSession, n: int, threshold: float)
         ok, _, _ = vad(w)
         if not ok:
             continue
+        if sos is not None:
+            w = sosfilt(sos, w)
         logit = float(sess.run(None, {"audio": w[None, :].astype(np.float32)})[0].reshape(-1)[0])
         s = 1 / (1 + math.exp(-logit))
         scores.append(s)
@@ -198,9 +206,11 @@ def main() -> None:
     p.add_argument("--kanaly", type=lambda v: v.split(","), default=["czysty", "whatsapp", "glosnik", "przy_mik"],
                    help="lista po przecinku, np. czysty,glosnik")
     p.add_argument("--zapisz-kanaly", type=Path, help="katalog na WAV po kanale (do symulacji w aplikacji)")
+    p.add_argument("--dolno", type=float, help="filtr dolnoprzepustowy na wejściu modelu [Hz]; domyślnie z .json")
     p.add_argument("pliki", type=Path, nargs="+")
     args = p.parse_args()
     spec = json.loads(args.model.with_suffix(".json").read_text())
+    sos = model_lowpass(args.dolno if args.dolno is not None else spec.get("lowpass_hz"))
     so = ort.SessionOptions()
     so.intra_op_num_threads = 2  # nie zajmujemy całego procesora
     sess = ort.InferenceSession(str(args.model), so)
@@ -212,7 +222,7 @@ def main() -> None:
             if args.zapisz_kanaly:
                 args.zapisz_kanaly.mkdir(parents=True, exist_ok=True)
                 sf.write(args.zapisz_kanaly / f"{path.stem}__{ch}.wav", y, SR, subtype="PCM_16")
-            r = run_app(y, sess, n, thr)
+            r = run_app(y, sess, n, thr, sos)
             print(json.dumps({"plik": path.name, "etykieta": args.etykieta, "kanal": ch, **r}, ensure_ascii=False))
 
 
