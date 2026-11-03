@@ -1,6 +1,7 @@
 package pl.voxverum.app.core
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.media.MediaRecorder
 
 /** Ustawienia użytkownika w SharedPreferences. Bez audio, tylko przełączniki. */
@@ -24,6 +25,21 @@ class VoxSettings(context: Context) {
     var debugDumpEnabled: Boolean
         get() = prefs.getBoolean(KEY_DEBUG_DUMP, false)
         set(value) = prefs.edit().putBoolean(KEY_DEBUG_DUMP, value).apply()
+
+    /** Ochrona może działać tylko po zgodzie i przy włączonym przełączniku. */
+    val protectionActive get() = protectionEnabled && consentAccepted
+
+    /**
+     * Woła [onChange], gdy zmieni się [protectionActive]. Zwraca funkcję wyrejestrowania.
+     * SharedPreferences trzyma słuchaczy słabo, więc referencję trzyma zwrócona funkcja.
+     */
+    fun observeProtection(onChange: () -> Unit): () -> Unit {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_PROTECTION || key == KEY_CONSENT) onChange()
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        return { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     private companion object {
         const val KEY_PROTECTION = "protection_enabled"

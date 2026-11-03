@@ -11,13 +11,11 @@ class OnnxClassifier(
     modelBytes: ByteArray,
     private val spec: ModelSpec,
 ) : AudioClassifier {
-    private val session: OrtSession = env.createSession(
-        modelBytes,
-        OrtSession.SessionOptions().apply {
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
-            setIntraOpNumThreads(2)
-        },
-    )
+    private val session: OrtSession = OrtSession.SessionOptions().use { options ->
+        options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+        options.setIntraOpNumThreads(2)
+        env.createSession(modelBytes, options)
+    }
 
     override val task = spec.task
     override val version = spec.version
@@ -26,11 +24,17 @@ class OnnxClassifier(
     override val windowSamples = spec.windowSamples
 
     init {
-        require(spec.inputName in session.inputNames) {
-            "Model ${spec.file} nie ma wejścia '${spec.inputName}' (ma: ${session.inputNames})"
-        }
-        require(spec.outputName in session.outputNames) {
-            "Model ${spec.file} nie ma wyjścia '${spec.outputName}' (ma: ${session.outputNames})"
+        // Przy złym modelu zamykamy sesję od razu: konstruktor rzuci wyjątek, więc nikt inny jej nie zamknie.
+        try {
+            require(spec.inputName in session.inputNames) {
+                "Model ${spec.file} nie ma wejścia '${spec.inputName}' (ma: ${session.inputNames})"
+            }
+            require(spec.outputName in session.outputNames) {
+                "Model ${spec.file} nie ma wyjścia '${spec.outputName}' (ma: ${session.outputNames})"
+            }
+        } catch (e: IllegalArgumentException) {
+            session.close()
+            throw e
         }
     }
 

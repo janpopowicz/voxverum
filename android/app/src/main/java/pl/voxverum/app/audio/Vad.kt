@@ -96,13 +96,14 @@ object Vad {
         private val hann = FloatArray(frame) { (0.5 - 0.5 * cos(2 * PI * it / (frame - 1))).toFloat() }
         private val re = DoubleArray(FFT_SIZE)
         private val im = DoubleArray(FFT_SIZE)
+        private val twiddles = Twiddles(FFT_SIZE)
 
         /** Zwraca (prążek szczytu, udział szczytu ±1 prążek w energii pasma od [MIN_BIN]). */
         fun peak(samples: FloatArray, start: Int): Pair<Int, Float> {
             re.fill(0.0)
             im.fill(0.0)
             for (i in 0 until frame) re[i] = (samples[start + i] * hann[i]).toDouble()
-            fft(re, im)
+            fft(re, im, twiddles)
             val power = DoubleArray(FFT_SIZE / 2 + 1) { re[it] * re[it] + im[it] * im[it] }
             var total = 0.0
             var best = MIN_BIN
@@ -117,9 +118,16 @@ object Vad {
         }
     }
 
+    /** cos/sin kątów -2πk/n, k < n/2, policzone raz zamiast w każdym motylku FFT. */
+    internal class Twiddles(val n: Int) {
+        val re = DoubleArray(n / 2) { cos(-2 * PI * it / n) }
+        val im = DoubleArray(n / 2) { sin(-2 * PI * it / n) }
+    }
+
     /** FFT radix-2 w miejscu; rozmiar musi być potęgą dwójki. */
-    internal fun fft(re: DoubleArray, im: DoubleArray) {
+    internal fun fft(re: DoubleArray, im: DoubleArray, tw: Twiddles = Twiddles(re.size)) {
         val n = re.size
+        require(tw.n == n)
         var j = 0
         for (i in 1 until n) {
             var bit = n shr 1
@@ -135,11 +143,11 @@ object Vad {
         }
         var len = 2
         while (len <= n) {
-            val angle = -2 * PI / len
+            val stride = n / len
             for (i in 0 until n step len) {
                 for (k in 0 until len / 2) {
-                    val wr = cos(angle * k)
-                    val wi = sin(angle * k)
+                    val wr = tw.re[k * stride]
+                    val wi = tw.im[k * stride]
                     val a = i + k
                     val b = a + len / 2
                     val xr = re[b] * wr - im[b] * wi

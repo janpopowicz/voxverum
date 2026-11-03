@@ -1,12 +1,14 @@
 package pl.voxverum.app.call
 
 import android.accessibilityservice.AccessibilityService
+import android.app.Notification
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pl.voxverum.app.BuildConfig
@@ -17,7 +19,9 @@ import pl.voxverum.app.core.CallState
 import pl.voxverum.app.core.VoxSettings
 import pl.voxverum.app.core.VoxState
 import pl.voxverum.app.history.CallHistory
+import pl.voxverum.app.ml.MissingModelClassifier
 import pl.voxverum.app.ml.ModelRegistry
+import pl.voxverum.app.ml.Task
 import pl.voxverum.app.ml.WindowAnalyzer
 import pl.voxverum.app.overlay.OverlayController
 import pl.voxverum.app.session.CaptureForegroundService
@@ -36,6 +40,7 @@ class VoxAccessibilityService : AccessibilityService() {
     private lateinit var alerter: Alerter
     private var session: ProtectionSession? = null
     private var sessionJob: Job? = null
+    private var stopObservingSettings: (() -> Unit)? = null
 
     override fun onServiceConnected() {
         settings = VoxSettings(this)
@@ -43,6 +48,14 @@ class VoxAccessibilityService : AccessibilityService() {
         alerter = Alerter(this)
         detector = CallDetector(this, scope, ::onCallStateChanged)
         detector.start()
+        // Przełącznik ochrony i zgoda działają też w trakcie trwającej rozmowy.
+        stopObservingSettings = settings.observeProtection {
+            val call = VoxState.callState.value
+            when {
+                !settings.protectionActive -> stopSession()
+                call is CallState.Active && session == null && sessionJob == null -> startSession(call)
+            }
+        }
         VoxState.setServiceConnected(true)
         // Wczytujemy modele od razu, żeby start rozmowy nie czekał na ONNX Runtime.
         scope.launch(Dispatchers.Default) { ModelRegistry.load(applicationContext) }
@@ -50,12 +63,20 @@ class VoxAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
+        // Powiadomienie o wiadomości to nie rozmowa. Bez tego wiadomość WhatsApp, a zaraz po niej
+        // rozmowa w innym komunikatorze (też MODE_IN_COMMUNICATION) uruchamiałaby analizę.
+        if (event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED &&
+            (event.parcelableData as? Notification)?.category != Notification.CATEGORY_CALL
+        ) {
+            return
+        }
         detector.onVoipAppEvent(pkg)
     }
 
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        stopObservingSettings?.invoke()
         stopSession()
         if (::detector.isInitialized) detector.stop()
         scope.cancel()
@@ -66,7 +87,7 @@ class VoxAccessibilityService : AccessibilityService() {
     private fun onCallStateChanged(state: CallState) {
         VoxState.setCallState(state)
         when (state) {
-            is CallState.Active -> if (settings.protectionEnabled) startSession(state)
+            is CallState.Active -> if (settings.protectionActive) startSession(state)
             CallState.Idle -> stopSession()
         }
     }
@@ -81,6 +102,7 @@ class VoxAccessibilityService : AccessibilityService() {
             val models = withContext(Dispatchers.Default) { ModelRegistry.load(applicationContext) }
             val analyzer = WindowAnalyzer(models)
             val mock = models.values.any { it.isMock }
+            val cloneMissing = models[Task.VOICE_CLONE] is MissingModelClassifier
             val source = MicAudioSource(this@VoxAccessibilityService, settings.audioSource)
             val dumper = if (BuildConfig.DEBUG && settings.debugDumpEnabled) {
                 DebugDumper(this@VoxAccessibilityService, source.sampleRate, source.name)
@@ -97,9 +119,11 @@ class VoxAccessibilityService : AccessibilityService() {
             ).also { it.start() }
 
             // Baner odświeża się przy każdej zmianie ryzyka albo wyciszenia mikrofonu.
+            // VoxState.audio zmienia się z każdym kawałkiem dźwięku (poziom dBFS), a baner tylko czasem.
             combine(VoxState.risk, VoxState.audio) { risk, audio ->
-                AlertTexts.overlay(risk, audio.silenced, mock, audio.error)
+                AlertTexts.overlay(risk, audio.silenced, mock, audio.error, cloneMissing)
             }
+                .distinctUntilChanged()
                 .collect { overlay.render(it) }
         }
         sessionJob = start

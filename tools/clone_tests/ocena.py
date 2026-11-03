@@ -141,8 +141,8 @@ def vad(w: np.ndarray) -> tuple[bool, float, float]:
 
 # ---------- RiskEngine jak w RiskEngine.kt ----------
 class Risk:
-    def __init__(self, t: float, alpha=0.4, hist=3, hits=2, warn=0.7, release=0.5):
-        self.t, self.a, self.hist, self.hits, self.warn, self.release = t, alpha, hist, hits, warn, release
+    def __init__(self, t: float, alpha=0.4, hist=6, gap=3, warn=0.7, release=0.5):
+        self.t, self.a, self.hist, self.gap, self.warn, self.release = t, alpha, hist, gap, warn, release
         self.h: list[bool] = []
         self.ema = None
         self.level = "OK?"
@@ -150,10 +150,13 @@ class Risk:
     def update(self, s: float) -> str:
         self.ema = s if self.ema is None else self.a * s + (1 - self.a) * self.ema
         self.h = (self.h + [s >= self.t])[-self.hist:]
-        hits = sum(self.h)
-        if self.level == "DANGER" or hits >= self.hits:
+        hit = [i for i, v in enumerate(self.h) if v]
+        # Dwa trafienia z nienakładających się fragmentów dźwięku (okna co 1 s, model widzi 3 s).
+        independent = bool(hit) and hit[-1] - hit[0] >= self.gap
+        recent = bool(hit) and len(self.h) - 1 - hit[-1] < self.gap
+        if self.level == "DANGER" or independent:
             self.level = "DANGER"
-        elif hits >= 1 or self.ema >= self.warn * self.t:
+        elif recent or self.ema >= self.warn * self.t:
             self.level = "WARN"
         elif self.level == "WARN" and self.ema >= self.release * self.t:
             self.level = "WARN"
@@ -183,6 +186,8 @@ def run_app(x: np.ndarray, sess: ort.InferenceSession, n: int, threshold: float)
         "powyzej_progu": float(np.mean(a >= threshold)) if scores else float("nan"),
         "wynik_aplikacji": risk.level if scores else "brak mowy",
         "czerwony_po_s": danger_at,
+        # Wyniki okien po kolei, żeby dało się przeliczyć inne reguły RiskEngine bez modelu.
+        "wyniki": [round(s, 4) for s in scores],
     }
 
 

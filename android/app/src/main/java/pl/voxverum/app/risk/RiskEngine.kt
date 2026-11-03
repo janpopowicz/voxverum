@@ -23,9 +23,12 @@ data class RiskAssessment(
  * nie odpalało alarmu.
  *
  * Reguły dla każdego modelu (próg `t` z pliku `.json` modelu):
- * - DANGER: co najmniej [dangerHits] z ostatnich [historySize] okien ≥ t. Po wejściu
- *   w DANGER poziom zostaje do końca rozmowy: raz ostrzeżony użytkownik ma widzieć ostrzeżenie.
- * - WARN: jedno okno ≥ t albo EMA ≥ [warnRatio]·t. Schodzi do OK dopiero, gdy EMA spadnie
+ * - DANGER: wśród ostatnich [historySize] okien są dwa okna ≥ t odległe o co najmniej
+ *   [independentGap] okien. Okna mają 4 s z krokiem 1 s, a model widzi ostatnie 3 s, więc trzy
+ *   kolejne okna dzielą ten sam fragment dźwięku. Jeden krótki dziwny dźwięk (stuk, trzask)
+ *   trafia w trzy okna z rzędu i sam nie odpali alarmu. Po wejściu w DANGER poziom zostaje
+ *   do końca rozmowy: raz ostrzeżony użytkownik ma widzieć ostrzeżenie.
+ * - WARN: okno ≥ t wśród ostatnich [independentGap] albo EMA ≥ [warnRatio]·t. Schodzi do OK dopiero, gdy EMA spadnie
  *   poniżej [releaseRatio]·t (histereza, bez migania baneru).
  * - OK: w pozostałych przypadkach.
  */
@@ -33,8 +36,8 @@ class RiskEngine(
     private val cloneThreshold: Float,
     private val scamThreshold: Float,
     private val alpha: Float = 0.4f,
-    private val historySize: Int = 3,
-    private val dangerHits: Int = 2,
+    private val historySize: Int = 6,
+    private val independentGap: Int = 3,
     private val warnRatio: Float = 0.7f,
     private val releaseRatio: Float = 0.5f,
 ) {
@@ -59,11 +62,16 @@ class RiskEngine(
             peak = maxOf(peak, score)
             history.addLast(score >= threshold)
             if (history.size > historySize) history.removeFirst()
-            val hits = history.count { it }
+            val first = history.indexOf(true)
+            val last = history.lastIndexOf(true)
+            // Dwa trafienia odległe o ≥ independentGap okien pochodzą z różnych fragmentów dźwięku.
+            val independentHits = first >= 0 && last - first >= independentGap
+            // Trafienie, którego fragment dźwięku model nadal widzi w bieżącym oknie.
+            val recentHit = last >= 0 && history.size - 1 - last < independentGap
 
             level = when {
-                level == RiskLevel.DANGER || hits >= dangerHits -> RiskLevel.DANGER
-                hits >= 1 || smoothed >= warnRatio * threshold -> RiskLevel.WARN
+                level == RiskLevel.DANGER || independentHits -> RiskLevel.DANGER
+                recentHit || smoothed >= warnRatio * threshold -> RiskLevel.WARN
                 level == RiskLevel.WARN && smoothed >= releaseRatio * threshold -> RiskLevel.WARN
                 else -> RiskLevel.OK
             }

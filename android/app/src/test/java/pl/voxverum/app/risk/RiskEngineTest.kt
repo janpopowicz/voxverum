@@ -1,6 +1,7 @@
 package pl.voxverum.app.risk
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class RiskEngineTest {
@@ -22,12 +23,29 @@ class RiskEngineTest {
     }
 
     @Test
-    fun `two of three over threshold is danger and it latches`() {
+    fun `one short sound seen by three overlapping windows only warns`() {
         val e = engine()
-        e.update(0.9f, 0.1f)
-        e.update(0.2f, 0.1f)
+        // Trzask w jednym miejscu nagrania trafia w 3 kolejne okna (model widzi ostatnie 3 s).
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.95f, 0.1f).clone.level) }
+        repeat(6) { assertNotEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
+        assertEquals(RiskLevel.OK, e.update(0.0f, 0.1f).clone.level)
+    }
+
+    @Test
+    fun `sustained clone is danger after four windows and it latches`() {
+        val e = engine()
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.9f, 0.1f).clone.level) }
         assertEquals(RiskLevel.DANGER, e.update(0.9f, 0.1f).clone.level)
         repeat(10) { assertEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
+    }
+
+    @Test
+    fun `two separate hits are danger`() {
+        val e = engine()
+        e.update(0.9f, 0.1f)
+        e.update(0.1f, 0.1f)
+        e.update(0.1f, 0.1f)
+        assertEquals(RiskLevel.DANGER, e.update(0.9f, 0.1f).clone.level)
     }
 
     @Test
@@ -44,10 +62,10 @@ class RiskEngineTest {
     @Test
     fun `overall is the worse of both models`() {
         val e = engine()
-        e.update(0.1f, 0.9f)
+        repeat(3) { e.update(0.1f, 0.9f) }
         val r = e.update(0.1f, 0.9f)
         assertEquals(RiskLevel.OK, r.clone.level)
         assertEquals(RiskLevel.DANGER, r.overall)
-        assertEquals(2, r.windows)
+        assertEquals(4, r.windows)
     }
 }

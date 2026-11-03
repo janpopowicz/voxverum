@@ -14,7 +14,8 @@ import pl.voxverum.app.core.CallState
 
 /**
  * Wykrywa rozmowę WhatsApp. Łączy dwa sygnały:
- * 1. zdarzenia ułatwień dostępu z pakietu WhatsApp (okno połączenia albo powiadomienie o połączeniu),
+ * 1. zdarzenia ułatwień dostępu z pakietu WhatsApp (okno aplikacji albo powiadomienie
+ *    z kategorią `CATEGORY_CALL`; powiadomienia o wiadomościach usługa odrzuca),
  * 2. tryb audio systemu `MODE_IN_COMMUNICATION`, który komunikator ustawia na czas rozmowy VoIP.
  *
  * Rozmowa zaczyna się, gdy tryb audio przechodzi na komunikację, a WhatsApp był aktywny
@@ -107,7 +108,12 @@ class CallDetector(
     companion object {
         private const val TAG = "VoxVerum"
         private const val POLL_INTERVAL_MS = 1_000L
-        private const val APP_SEEN_WINDOW_MS = 60_000L
+        /**
+         * Krócej = mniejsza szansa, że rozmowa w innym komunikatorze chwilę po otwarciu WhatsApp
+         * zostanie wzięta za rozmowę WhatsApp. Odebranie połączenia i tak daje świeże zdarzenie
+         * (okno rozmowy albo powiadomienie o trwającym połączeniu).
+         */
+        private const val APP_SEEN_WINDOW_MS = 30_000L
         private const val END_GRACE_MS = 2_000L
 
         val SUPPORTED_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
