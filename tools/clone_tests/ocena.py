@@ -114,24 +114,21 @@ HANN = np.hanning(FR)
 
 def vad(w: np.ndarray) -> tuple[bool, float, float]:
     count = len(w) // FR
-    loud = np.zeros(count, bool)
-    peaky = np.zeros(count, bool)
-    peak = np.zeros(count, int)
-    for f in range(count):
-        fr = w[f * FR:(f + 1) * FR]
-        db = 10 * math.log10(max(float(np.mean(fr.astype(np.float64) ** 2)), 1e-20))
-        loud[f] = db > -45
-        if not loud[f]:
-            continue
-        band = (np.abs(np.fft.rfft(fr * HANN, NFFT)) ** 2)[LO:]
-        k = int(np.argmax(band))
-        tot = band.sum()
-        share = band[max(0, k - 1):k + 2].sum() / tot if tot > 0 else 0
-        peak[f], peaky[f] = k, share > PEAK_SHARE
+    fr = w[: count * FR].reshape(count, FR).astype(np.float64)
+    db = 10 * np.log10(np.maximum((fr ** 2).mean(axis=1), 1e-20))
+    loud = db > -45
+    band = (np.abs(np.fft.rfft(fr * HANN, NFFT, axis=1)) ** 2)[:, LO:]
+    peak = band.argmax(axis=1)
+    padded = np.pad(band, ((0, 0), (1, 1)))
+    rows = np.arange(count)
+    lobe = padded[rows, peak] + padded[rows, peak + 1] + padded[rows, peak + 2]
+    tot = band.sum(axis=1)
+    share = np.where(tot > 0, lobe / np.where(tot > 0, tot, 1), 0)
+    peaky = loud & (share > PEAK_SHARE)
     tone = np.zeros(count, bool)
     start = 0
     for f in range(1, count + 1):
-        cont = f < count and peaky[f] and peaky[f - 1] and abs(peak[f] - peak[f - 1]) <= 1
+        cont = f < count and peaky[f] and peaky[f - 1] and abs(int(peak[f]) - int(peak[f - 1])) <= 1
         if cont:
             continue
         if peaky[start] and f - start >= RUN:
