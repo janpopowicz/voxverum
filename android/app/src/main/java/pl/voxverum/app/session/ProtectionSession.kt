@@ -85,6 +85,10 @@ class ProtectionSession(
             } catch (e: Exception) {
                 Log.e(TAG, "Session failed", e)
                 VoxState.updateAudio { it.copy(error = e.message ?: e.toString()) }
+            } catch (e: OutOfMemoryError) {
+                // Symulacja wczytuje cały plik WAV do pamięci; za duży plik nie może wywrócić aplikacji.
+                Log.e(TAG, "Session out of memory", e)
+                VoxState.updateAudio { it.copy(error = "za mało pamięci (plik WAV za duży?)") }
             } finally {
                 debugDumper?.flush()
                 VoxState.updateAudio { it.copy(running = false, levelDb = Vad.SILENCE_DB, speech = false, tone = false) }
