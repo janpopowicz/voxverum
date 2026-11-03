@@ -30,6 +30,16 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
   więc nigdy nie alarmuje, a ekran Ochrona to pokazuje. Wynik modelu nie jest procentem pewności, dlatego baner pokazuje
   tylko poziom. Zieleni nie ma, bo brak oznak klonu nie potwierdza tożsamości (klon XTTS przechodzi, patrz
   [docs/testy-klonu.md](docs/testy-klonu.md)). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
+- Przed modelem odrzucamy ciszę i okna ze stałym tonem (np. sygnałem wołania lub brumem).
+  Filtr sprawdza ostatnie 3 s, czyli fragment oceniany przez Mother Voice. Pominięte okno nie jest wynikiem „bezpieczny”.
+- Czerwony alarm wymaga dwóch wyników ponad progiem z nienakładających się fragmentów dźwięku (okna odległe
+  o co najmniej 3 s) w ostatnich sześciu analizowanych oknach. Jeden krótki dźwięk widziany przez trzy kolejne okna
+  daje najwyżej żółty. Kolejne niskie wyniki obniżają poziom z powrotem; alarm nie zatrzaskuje się do końca rozmowy.
+  Powiadomienie znika po obniżeniu ryzyka lub zakończeniu rozmowy, a nowa eskalacja może ponownie ostrzec.
+  Historia zachowuje najwyższy poziom osiągnięty podczas rozmowy.
+- Filtr tonów ogranicza znany fałszywy alarm opisany w [zgłoszeniu #2](https://github.com/janpopowicz/voxverum/issues/2).
+  Nie potwierdza to jeszcze skuteczności modelu dla prawdziwej rozmowy nagrywanej z głośnika telefonu.
+  W wersji debug ekran Debug pokazuje pominięte tony, a `adb logcat -s VoxVerum` wyniki każdego okna bez audio.
 
 ## Uruchamianie
 

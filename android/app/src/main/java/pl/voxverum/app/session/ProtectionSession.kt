@@ -71,7 +71,10 @@ class ProtectionSession(
                         VoxState.updateAudio {
                             it.copy(speech = vad.isSpeech, tone = vad.toneRatio > VadResult.MAX_TONE, windows = it.windows + 1)
                         }
-                        val scores = if (vad.isSpeech) analyze(window) else null
+                        val scores = if (vad.isSpeech) analyze(window) else {
+                            VoxState.setScores(null)
+                            null
+                        }
                         if (BuildConfig.DEBUG) {
                             val clone = scores?.let { String.format(Locale.US, "%.3f", it.clone) } ?: "-"
                             Log.d(TAG, String.format(Locale.US, "okno mowa=%.2f ton=%.2f klon=%s", vad.speechRatio, vad.toneRatio, clone))

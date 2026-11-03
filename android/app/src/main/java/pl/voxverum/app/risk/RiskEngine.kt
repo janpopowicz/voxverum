@@ -14,6 +14,8 @@ data class RiskAssessment(
     val clone: ModelRisk = ModelRisk(),
     val scam: ModelRisk = ModelRisk(),
     val windows: Int = 0,
+    /** Najwyższy poziom w sesji do historii; bieżący baner korzysta z [overall]. */
+    val peakOverall: RiskLevel = maxOf(clone.level, scam.level),
 ) {
     val overall: RiskLevel get() = maxOf(clone.level, scam.level)
 }
@@ -26,8 +28,8 @@ data class RiskAssessment(
  * - DANGER: wśród ostatnich [historySize] okien są dwa okna ≥ t odległe o co najmniej
  *   [independentGap] okien. Okna mają 4 s z krokiem 1 s, a model widzi ostatnie 3 s, więc trzy
  *   kolejne okna dzielą ten sam fragment dźwięku. Jeden krótki dziwny dźwięk (stuk, trzask)
- *   trafia w trzy okna z rzędu i sam nie odpali alarmu. Po wejściu w DANGER poziom zostaje
- *   do końca rozmowy: raz ostrzeżony użytkownik ma widzieć ostrzeżenie.
+ *   trafia w trzy okna z rzędu i sam nie odpali alarmu. Kolejne niskie wyniki wygaszają alarm,
+ *   gdy wysokie wyniki wypadną z historii; najwyższy poziom zostaje w [RiskAssessment.peakOverall].
  * - WARN: okno ≥ t wśród ostatnich [independentGap] albo EMA ≥ [warnRatio]·t. Schodzi do OK dopiero, gdy EMA spadnie
  *   poniżej [releaseRatio]·t (histereza, bez migania baneru).
  * - OK: w pozostałych przypadkach.
@@ -44,10 +46,14 @@ class RiskEngine(
     private val clone = Tracker(cloneThreshold)
     private val scam = Tracker(scamThreshold)
     private var windows = 0
+    private var peakOverall = RiskLevel.UNKNOWN
 
     fun update(cloneScore: Float, scamScore: Float): RiskAssessment {
         windows++
-        return RiskAssessment(clone.update(cloneScore), scam.update(scamScore), windows)
+        val cloneRisk = clone.update(cloneScore)
+        val scamRisk = scam.update(scamScore)
+        peakOverall = maxOf(peakOverall, cloneRisk.level, scamRisk.level)
+        return RiskAssessment(cloneRisk, scamRisk, windows, peakOverall)
     }
 
     private inner class Tracker(private val threshold: Float) {
@@ -70,9 +76,9 @@ class RiskEngine(
             val recentHit = last >= 0 && history.size - 1 - last < independentGap
 
             level = when {
-                level == RiskLevel.DANGER || independentHits -> RiskLevel.DANGER
+                independentHits -> RiskLevel.DANGER
                 recentHit || smoothed >= warnRatio * threshold -> RiskLevel.WARN
-                level == RiskLevel.WARN && smoothed >= releaseRatio * threshold -> RiskLevel.WARN
+                level >= RiskLevel.WARN && smoothed >= releaseRatio * threshold -> RiskLevel.WARN
                 else -> RiskLevel.OK
             }
             return ModelRisk(level, smoothed, score, peak)

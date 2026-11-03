@@ -27,7 +27,7 @@ class AlertTextsTest {
     }
 
     @Test
-    fun `latched danger stays on top of silenced mic and capture error`() {
+    fun `current danger stays on top of silenced mic and capture error`() {
         val danger = risk(RiskLevel.DANGER, RiskLevel.OK)
         assertEquals(Tone.DANGER, AlertTexts.overlay(danger, silenced = true, mockModels = false).tone)
         assertEquals(Tone.DANGER, AlertTexts.overlay(danger, false, false, error = "AudioRecord").tone)
@@ -63,6 +63,15 @@ class AlertTextsTest {
         // Bez zieleni: brak oznak klonu nie potwierdza tożsamości.
         val ok = AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false)
         assertEquals(Tone.NEUTRAL, ok.tone)
-        assertTrue(ok.detail.contains("Kod Rozmowy"))
+        assertTrue(ok.detail.contains("innym kanałem"))
+    }
+
+    @Test
+    fun `warnings do not require a conversation code or family password`() {
+        for (clone in RiskLevel.entries) for (scam in RiskLevel.entries) {
+            val detail = AlertTexts.overlay(risk(clone, scam), false, false).detail
+            assertFalse(detail.contains("Kod Rozmowy"))
+            assertFalse(detail.contains("hasło rodzinne"))
+        }
     }
 }

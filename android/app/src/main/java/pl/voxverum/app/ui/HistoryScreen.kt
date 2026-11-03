@@ -58,7 +58,7 @@ private fun RecordRow(r: CallRecord) {
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    "${r.durationSec / 60} min ${r.durationSec % 60} s · ${r.level.label()}" +
+                    "${r.durationSec / 60} min ${r.durationSec % 60} s · maks. ${r.level.label()}" +
                         if (r.mockModels) " · modele testowe" else "",
                     style = MaterialTheme.typography.bodySmall,
                 )

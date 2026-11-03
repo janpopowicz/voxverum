@@ -154,11 +154,11 @@ class Risk:
         # Dwa trafienia z nienakładających się fragmentów dźwięku (okna co 1 s, model widzi 3 s).
         independent = bool(hit) and hit[-1] - hit[0] >= self.gap
         recent = bool(hit) and len(self.h) - 1 - hit[-1] < self.gap
-        if self.level == "DANGER" or independent:
+        if independent:  # bez zatrzaskiwania, jak RiskEngine.kt po #3
             self.level = "DANGER"
         elif recent or self.ema >= self.warn * self.t:
             self.level = "WARN"
-        elif self.level == "WARN" and self.ema >= self.release * self.t:
+        elif self.level in ("WARN", "DANGER") and self.ema >= self.release * self.t:
             self.level = "WARN"
         else:
             self.level = "OK"

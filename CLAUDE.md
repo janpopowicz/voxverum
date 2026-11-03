@@ -41,7 +41,7 @@ Kotlin, Compose, minSdk 29, target/compileSdk 36, AGP 8.13, Kotlin 2.2.20, ONNX 
 | `audio/` | `MicAudioSource` (16 kHz mono float, `VOICE_RECOGNITION` z fallbackiem `MIC`), `AudioWindower`, `Vad`, `WavIo`. |
 | `session/` | `ProtectionSession`: okna 4 s co 1 s → `conflate()` → VAD → modele → `RiskEngine`. `CaptureForegroundService` (typ microphone). `DebugDumper` tylko w debug. |
 | `ml/` | `ModelSpec` (JSON), `OnnxClassifier`, `ModelRegistry` (sprawdza model próbnym uruchomieniem, a przy błędzie daje `MissingModelClassifier`), `ScoreMath`. Model dostaje ostatnie `window_samples` z okna 4 s (`ScoreMath.tail`). |
-| `risk/` | `RiskEngine`: EMA, DANGER przy 2 z 3 okien ≥ progu (zatrzaskuje się do końca rozmowy), WARN z histerezą. |
+| `risk/` | `RiskEngine`: EMA, DANGER przy dwóch trafieniach ≥ progu odległych o ≥ 3 okna w ostatnich 6 (bez zatrzaskiwania, po #3), WARN z histerezą, `peakOverall` do historii. |
 | `alert/` | `AlertTexts` (teksty banera), `Alerter` (wibracja i powiadomienie tylko przy eskalacji). |
 | `history/` | Tylko metadane rozmów w `filesDir/call_history.json`, maks. 50. Nigdy audio. |
 | `sim/` | `WavAudioSource`: symulacja z pliku WAV tym samym pipeline'em. |

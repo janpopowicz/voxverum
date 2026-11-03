@@ -32,11 +32,37 @@ class RiskEngineTest {
     }
 
     @Test
-    fun `sustained clone is danger after four windows and it latches`() {
+    fun `sustained clone is danger after four windows and low scores release it`() {
         val e = engine()
         repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.9f, 0.1f).clone.level) }
         assertEquals(RiskLevel.DANGER, e.update(0.9f, 0.1f).clone.level)
-        repeat(10) { assertEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
+        // Alarm trwa, dopóki pierwsze i ostatnie trafienie są w historii 6 okien.
+        repeat(2) { assertEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
+        val recovered = e.update(0.0f, 0.1f)
+        assertEquals(RiskLevel.OK, recovered.clone.level)
+        assertEquals(RiskLevel.DANGER, recovered.peakOverall)
+    }
+
+    @Test
+    fun `sustained high scores keep danger and alarm can return after recovery`() {
+        val e = engine()
+        repeat(3) { e.update(0.95f, 0.1f) }
+        repeat(10) { assertEquals(RiskLevel.DANGER, e.update(0.95f, 0.1f).clone.level) }
+        repeat(10) { e.update(0.0f, 0.1f) }
+        assertEquals(RiskLevel.OK, e.update(0.0f, 0.1f).clone.level)
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.95f, 0.1f).clone.level) }
+        assertEquals(RiskLevel.DANGER, e.update(0.95f, 0.1f).clone.level)
+    }
+
+    @Test
+    fun `clone recovery does not clear ongoing scam danger`() {
+        val e = engine()
+        repeat(4) { e.update(0.95f, 0.95f) }
+        repeat(10) { e.update(0.0f, 0.95f) }
+        val r = e.update(0.0f, 0.95f)
+        assertEquals(RiskLevel.OK, r.clone.level)
+        assertEquals(RiskLevel.DANGER, r.scam.level)
+        assertEquals(RiskLevel.DANGER, r.overall)
     }
 
     @Test

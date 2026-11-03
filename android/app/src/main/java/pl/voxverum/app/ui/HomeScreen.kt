@@ -109,9 +109,9 @@ fun HomeScreen(
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Zasada STOP, ODDZWOŃ, ZAPYTAJ O HASŁO", fontWeight = FontWeight.SemiBold)
+                Text("Sprawdź prośbę o pieniądze lub dane", fontWeight = FontWeight.SemiBold)
                 Text("Gdy ktoś prosi o pieniądze, kod BLIK albo zmianę numeru konta, zatrzymaj rozmowę, " +
-                    "oddzwoń na znany numer i zapytaj o Kod Rozmowy albo hasło rodzinne.",
+                    "potwierdź prośbę innym kanałem, na przykład dzwoniąc na znany wcześniej numer.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
