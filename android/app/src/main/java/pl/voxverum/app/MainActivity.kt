@@ -5,9 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
@@ -33,10 +35,14 @@ import pl.voxverum.app.ui.HomeScreen
 import pl.voxverum.app.ui.VoxTheme
 import pl.voxverum.app.ui.VoxViewModel
 
+/** Odpowiedź szybsza niż to = system nie pokazał okna uprawnienia (wcześniejsza trwała odmowa). */
+private const val NO_DIALOG_MS = 500L
+
 class MainActivity : ComponentActivity() {
     private val vm: VoxViewModel by viewModels()
 
     private var requestedPermission: String? = null
+    private var requestedAtMs = 0L
 
     private val requestPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -44,11 +50,14 @@ class MainActivity : ComponentActivity() {
             val permission = requestedPermission ?: return@registerForActivityResult
             // Po drugiej odmowie Android nie pokazuje już okna i od razu zwraca odmowę.
             // Wtedy jedyna droga to ustawienia aplikacji, inaczej przycisk „Zezwól” nic nie robi.
-            if (!granted && !shouldShowRequestPermissionRationale(permission)) openAppSettings()
+            // Natychmiastowa odpowiedź odróżnia to od zamknięcia okna, które ustawień otwierać nie powinno.
+            val noDialog = SystemClock.elapsedRealtime() - requestedAtMs < NO_DIALOG_MS
+            if (!granted && noDialog && !shouldShowRequestPermissionRationale(permission)) openAppSettings()
         }
 
     private fun ask(permission: String) {
         requestedPermission = permission
+        requestedAtMs = SystemClock.elapsedRealtime()
         requestPermission.launch(permission)
     }
 
@@ -61,6 +70,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Ikony paska stanu w kolorze zależnym od trybu jasnego/ciemnego (bez tego w trybie ciemnym znikały).
+        enableEdgeToEdge()
         setContent {
             VoxTheme {
                 val consent by vm.consent.collectAsStateWithLifecycle()

@@ -40,6 +40,8 @@ data class ModelSpec(
     val outputType: OutputType,
     val positiveIndex: Int,
     val threshold: Float,
+    /** Opcjonalny filtr dolnoprzepustowy na wejściu modelu (Hz); null = bez filtra. */
+    val lowpassHz: Float? = null,
 ) {
     companion object {
         fun parse(json: String): ModelSpec {
@@ -55,10 +57,12 @@ data class ModelSpec(
                 outputType = OutputType.fromId(o.optString("output_type", "probability")),
                 positiveIndex = o.optInt("positive_index", 1),
                 threshold = o.optDouble("threshold", 0.5).toFloat(),
+                lowpassHz = if (o.has("lowpass_hz")) o.getDouble("lowpass_hz").toFloat() else null,
             )
             require(spec.sampleRate == 16_000) { "Aplikacja nagrywa 16 kHz, a model chce ${spec.sampleRate} Hz" }
             require(spec.windowSamples > 0) { "window_samples musi być dodatnie" }
             require(spec.threshold in 0f..1f) { "threshold musi być w zakresie 0…1" }
+            require(spec.lowpassHz == null || spec.lowpassHz in 1f..7999f) { "lowpass_hz musi być w zakresie 1…7999" }
             return spec
         }
     }

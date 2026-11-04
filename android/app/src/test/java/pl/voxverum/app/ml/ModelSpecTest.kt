@@ -28,6 +28,18 @@ class ModelSpecTest {
         assertEquals("score", spec.outputName)
         assertEquals(OutputType.PROBABILITY, spec.outputType)
         assertEquals(0.5f, spec.threshold, 1e-6f)
+        assertEquals(null, spec.lowpassHz)
+    }
+
+    @Test
+    fun `parses optional lowpass`() {
+        val spec = ModelSpec.parse("""{"task": "scam", "file": "s.onnx", "window_samples": 1, "lowpass_hz": 7000}""")
+        assertEquals(7000f, spec.lowpassHz!!, 1e-6f)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `rejects lowpass above nyquist`() {
+        ModelSpec.parse("""{"task": "scam", "file": "s.onnx", "window_samples": 1, "lowpass_hz": 9000}""")
     }
 
     @Test(expected = IllegalArgumentException::class)

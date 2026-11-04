@@ -11,10 +11,12 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Kolory baneru (ARGB). Granat = zaufanie, zieleń = „potwierdzone”, jak w identyfikacji z biznesplanu. */
+/**
+ * Kolory baneru (ARGB), granat jak w identyfikacji z biznesplanu. Zieleni („potwierdzone”) celowo nie ma:
+ * detektor nie potwierdza tożsamości rozmówcy, może tylko ostrzec.
+ */
 enum class Tone(val background: Int) {
     NEUTRAL(0xFF1F3A5F.toInt()),
-    OK(0xFF2E7D32.toInt()),
     WARN(0xFFF9A825.toInt()),
     DANGER(0xFFC62828.toInt()),
 }
@@ -65,8 +67,14 @@ class OverlayController(private val service: AccessibilityService) {
             background = GradientDrawable().apply { cornerRadius = dp(16).toFloat() }
             elevation = dp(6).toFloat()
         }
-        title = TextView(service).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f); paint.isFakeBoldText = true }
-        detail = TextView(service).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) }
+        // Większy tekst niż standard: z aplikacji korzystają też seniorzy, a baner czyta się w biegu.
+        title = TextView(service).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            paint.isFakeBoldText = true
+            // TalkBack odczyta zmianę tytułu (np. przejście w czerwony alarm) bez dotykania baneru.
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        detail = TextView(service).apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f) }
         layout.addView(title)
         layout.addView(detail)
         layout.setOnClickListener { toggleCollapsed() }

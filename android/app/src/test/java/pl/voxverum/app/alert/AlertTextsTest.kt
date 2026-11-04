@@ -21,9 +21,23 @@ class AlertTextsTest {
     }
 
     @Test
-    fun `silenced mic overrides risk`() {
-        val m = AlertTexts.overlay(risk(RiskLevel.DANGER, RiskLevel.OK), silenced = true, mockModels = false)
+    fun `silenced mic overrides ok and warn`() {
+        val m = AlertTexts.overlay(risk(RiskLevel.WARN, RiskLevel.OK), silenced = true, mockModels = false)
         assertEquals("Analiza wstrzymana", m.title)
+    }
+
+    @Test
+    fun `current danger stays on top of silenced mic and capture error`() {
+        val danger = risk(RiskLevel.DANGER, RiskLevel.OK)
+        assertEquals(Tone.DANGER, AlertTexts.overlay(danger, silenced = true, mockModels = false).tone)
+        assertEquals(Tone.DANGER, AlertTexts.overlay(danger, false, false, error = "AudioRecord").tone)
+    }
+
+    @Test
+    fun `missing clone model does not claim there is no clone`() {
+        val m = AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false, cloneMissing = true)
+        assertEquals("Wykrywanie klonu niedostępne", m.title)
+        assertFalse(m.title.contains("Brak oznak"))
     }
 
     @Test
@@ -46,7 +60,10 @@ class AlertTextsTest {
         assertEquals(Tone.WARN, warn.tone)
         assertFalse("wyniki nie są skalibrowane", warn.detail.contains("%"))
         assertTrue(warn.detail.endsWith("(modele testowe)"))
-        assertEquals(Tone.OK, AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false).tone)
+        // Bez zieleni: brak oznak klonu nie potwierdza tożsamości.
+        val ok = AlertTexts.overlay(risk(RiskLevel.OK, RiskLevel.OK), false, false)
+        assertEquals(Tone.NEUTRAL, ok.tone)
+        assertTrue(ok.detail.contains("innym kanałem"))
     }
 
     @Test

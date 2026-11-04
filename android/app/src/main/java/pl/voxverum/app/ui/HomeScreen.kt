@@ -122,12 +122,14 @@ fun HomeScreen(
 @Composable
 private fun StatusCard(permissions: Permissions, protection: Boolean, callState: CallState, risk: RiskAssessment?) {
     val (color, title, detail) = when {
-        !permissions.allGranted -> Triple(Warning, "Dokończ konfigurację", "Bez uprawnień poniżej ochrona nie zadziała.")
+        !permissions.required -> Triple(Warning, "Dokończ konfigurację", "Bez uprawnień poniżej ochrona nie zadziała.")
         !protection -> Triple(Color.Gray, "Ochrona wyłączona", "Włącz przełącznik, żeby analizować rozmowy.")
         callState is CallState.Active -> {
             val level = risk?.overall ?: RiskLevel.UNKNOWN
             Triple(level.color(), "Trwa rozmowa: ${level.label()}", "Szczegóły na banerze nad rozmową.")
         }
+        !permissions.notifications ->
+            Triple(Warning, "Ochrona aktywna bez powiadomień", "Ostrzeżenie zobaczysz tylko na banerze nad rozmową.")
         else -> Triple(Confirmed, "Ochrona aktywna", "Czekam na rozmowę WhatsApp.")
     }
     Card(

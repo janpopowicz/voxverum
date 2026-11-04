@@ -8,5 +8,6 @@
   "output_name": "score",
   "output_type": "logits",
   "positive_index": 1,
-  "threshold": 0.572267472743988
+  "threshold": 0.572267472743988,
+  "lowpass_hz": 7000
 }

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.VoxVerum" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Tło okna w barwach aplikacji; wersja ciemna w values-night, ekran startowy w values-v31. -->
+    <style name="Theme.VoxVerum" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

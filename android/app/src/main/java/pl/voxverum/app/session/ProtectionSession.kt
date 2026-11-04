@@ -3,8 +3,11 @@ package pl.voxverum.app.session
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import pl.voxverum.app.BuildConfig
@@ -57,12 +60,14 @@ class ProtectionSession(
                         VoxState.updateAudio { it.copy(levelDb = level, sourceName = source.name) }
                     }
                     .windowed(WINDOW_SAMPLES, HOP_SAMPLES)
+                    // Detektor patrzy na ten sam fragment co model (Mother Voice: ostatnie 3 s z 4 s).
+                    .map { window -> window to Vad.analyze(modelInput(window), source.sampleRate) }
+                    // Okienkowanie i FFT detektora nie na głównym wątku (tam rysuje się baner).
+                    .flowOn(Dispatchers.Default)
                     // Gdy modele liczą dłużej niż krok okna, bierzemy najświeższe okno zamiast
                     // kolejkować zaległe: ostrzeżenie ma dotyczyć tego, co dzieje się teraz.
                     .conflate()
-                    .collect { window ->
-                        // Detektor patrzy na ten sam fragment co model (Mother Voice: ostatnie 3 s z 4 s).
-                        val vad = Vad.analyze(modelInput(window), source.sampleRate)
+                    .collect { (window, vad) ->
                         VoxState.updateAudio {
                             it.copy(speech = vad.isSpeech, tone = vad.toneRatio > VadResult.MAX_TONE, windows = it.windows + 1)
                         }
@@ -80,6 +85,10 @@ class ProtectionSession(
             } catch (e: Exception) {
                 Log.e(TAG, "Session failed", e)
                 VoxState.updateAudio { it.copy(error = e.message ?: e.toString()) }
+            } catch (e: OutOfMemoryError) {
+                // Symulacja wczytuje cały plik WAV do pamięci; za duży plik nie może wywrócić aplikacji.
+                Log.e(TAG, "Session out of memory", e)
+                VoxState.updateAudio { it.copy(error = "za mało pamięci (plik WAV za duży?)") }
             } finally {
                 debugDumper?.flush()
                 VoxState.updateAudio { it.copy(running = false, levelDb = Vad.SILENCE_DB, speech = false, tone = false) }

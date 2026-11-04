@@ -11,9 +11,21 @@ import pl.voxverum.app.risk.RiskLevel
  * Bez procentów: wyniki modeli nie są skalibrowanym prawdopodobieństwem (patrz INTEGRATION.md).
  */
 object AlertTexts {
-    /** [error] to błąd nasłuchu (np. brak uprawnienia do mikrofonu); wtedy nie udajemy, że chronimy. */
-    fun overlay(risk: RiskAssessment?, silenced: Boolean, mockModels: Boolean, error: String? = null): OverlayModel {
+    /**
+     * [error] to błąd nasłuchu (np. brak uprawnienia do mikrofonu); wtedy nie udajemy, że chronimy.
+     * [cloneMissing]: w aplikacji nie ma modelu klonu, więc „brak oznak klonu” byłoby nieprawdą.
+     */
+    fun overlay(
+        risk: RiskAssessment?,
+        silenced: Boolean,
+        mockModels: Boolean,
+        error: String? = null,
+        cloneMissing: Boolean = false,
+    ): OverlayModel {
         val suffix = if (mockModels) " (modele testowe)" else ""
+        // Bieżący czerwony alarm zostaje na wierzchu, nawet gdy potem nasłuch się wyłożył albo system
+        // wyciszył mikrofon: ostrzeżenie dotyczy tej samej rozmowy i nadal jest aktualne.
+        if (risk?.overall == RiskLevel.DANGER) return assessment(risk, suffix, cloneMissing)
         if (error != null) {
             return OverlayModel(
                 Tone.WARN,
@@ -35,6 +47,10 @@ object AlertTexts {
                 "Włącz głośnik, żeby analiza słyszała rozmówcę.$suffix",
             )
         }
+        return assessment(risk, suffix, cloneMissing)
+    }
+
+    private fun assessment(risk: RiskAssessment, suffix: String, cloneMissing: Boolean): OverlayModel {
         val clone = risk.clone.level
         val scam = risk.scam.level
         return when {
@@ -58,10 +74,17 @@ object AlertTexts {
                 "Uwaga: coś się nie zgadza",
                 "Analiza wykryła podejrzany sygnał. Jeśli prośba dotyczy pieniędzy lub danych, potwierdź ją innym kanałem.$suffix",
             )
+            cloneMissing -> OverlayModel(
+                Tone.NEUTRAL,
+                "Wykrywanie klonu niedostępne",
+                "Ta wersja aplikacji nie ma modelu klonu głosu. Prośbę o pieniądze lub dane potwierdź innym kanałem, na przykład dzwoniąc na znany numer.$suffix",
+            )
+            // Nie na zielono: brak oznak klonu nie potwierdza tożsamości, a detektor nie łapie
+            // każdego generatora (klon XTTS dostaje wynik bliski 0, patrz docs/testy-klonu.md).
             else -> OverlayModel(
-                Tone.OK,
-                "Nie wykryto zagrożenia",
-                "Głos to nie dowód tożsamości.$suffix",
+                Tone.NEUTRAL,
+                "Brak oznak klonu głosu",
+                "To nie potwierdza, kto mówi. Prośbę o pieniądze lub dane potwierdź innym kanałem, na przykład dzwoniąc na znany numer.$suffix",
             )
         }
     }

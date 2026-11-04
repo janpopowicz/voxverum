@@ -35,7 +35,8 @@ data class Permissions(
     val microphone: Boolean = false,
     val notifications: Boolean = false,
 ) {
-    val allGranted get() = accessibility && microphone && notifications
+    /** Bez powiadomień ochrona działa (ostrzega baner), bez tych dwóch nie. */
+    val required get() = accessibility && microphone
 }
 
 data class ModelInfo(val task: Task, val version: String, val threshold: Float, val mock: Boolean) {

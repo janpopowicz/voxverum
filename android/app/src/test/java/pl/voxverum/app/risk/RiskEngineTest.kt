@@ -1,6 +1,7 @@
 package pl.voxverum.app.risk
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class RiskEngineTest {
@@ -22,13 +23,21 @@ class RiskEngineTest {
     }
 
     @Test
-    fun `two of three over threshold is danger but low scores release it`() {
+    fun `one short sound seen by three overlapping windows only warns`() {
         val e = engine()
-        e.update(0.9f, 0.1f)
-        e.update(0.2f, 0.1f)
+        // Trzask w jednym miejscu nagrania trafia w 3 kolejne okna (model widzi ostatnie 3 s).
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.95f, 0.1f).clone.level) }
+        repeat(6) { assertNotEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
+        assertEquals(RiskLevel.OK, e.update(0.0f, 0.1f).clone.level)
+    }
+
+    @Test
+    fun `sustained clone is danger after four windows and low scores release it`() {
+        val e = engine()
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.9f, 0.1f).clone.level) }
         assertEquals(RiskLevel.DANGER, e.update(0.9f, 0.1f).clone.level)
-        assertEquals(RiskLevel.WARN, e.update(0.0f, 0.1f).clone.level)
-        assertEquals(RiskLevel.WARN, e.update(0.0f, 0.1f).clone.level)
+        // Alarm trwa, dopóki pierwsze i ostatnie trafienie są w historii 6 okien.
+        repeat(2) { assertEquals(RiskLevel.DANGER, e.update(0.0f, 0.1f).clone.level) }
         val recovered = e.update(0.0f, 0.1f)
         assertEquals(RiskLevel.OK, recovered.clone.level)
         assertEquals(RiskLevel.DANGER, recovered.peakOverall)
@@ -37,23 +46,32 @@ class RiskEngineTest {
     @Test
     fun `sustained high scores keep danger and alarm can return after recovery`() {
         val e = engine()
-        repeat(2) { e.update(0.95f, 0.1f) }
+        repeat(3) { e.update(0.95f, 0.1f) }
         repeat(10) { assertEquals(RiskLevel.DANGER, e.update(0.95f, 0.1f).clone.level) }
         repeat(10) { e.update(0.0f, 0.1f) }
         assertEquals(RiskLevel.OK, e.update(0.0f, 0.1f).clone.level)
-        assertEquals(RiskLevel.WARN, e.update(0.95f, 0.1f).clone.level)
+        repeat(3) { assertEquals(RiskLevel.WARN, e.update(0.95f, 0.1f).clone.level) }
         assertEquals(RiskLevel.DANGER, e.update(0.95f, 0.1f).clone.level)
     }
 
     @Test
     fun `clone recovery does not clear ongoing scam danger`() {
         val e = engine()
-        repeat(2) { e.update(0.95f, 0.95f) }
+        repeat(4) { e.update(0.95f, 0.95f) }
         repeat(10) { e.update(0.0f, 0.95f) }
         val r = e.update(0.0f, 0.95f)
         assertEquals(RiskLevel.OK, r.clone.level)
         assertEquals(RiskLevel.DANGER, r.scam.level)
         assertEquals(RiskLevel.DANGER, r.overall)
+    }
+
+    @Test
+    fun `two separate hits are danger`() {
+        val e = engine()
+        e.update(0.9f, 0.1f)
+        e.update(0.1f, 0.1f)
+        e.update(0.1f, 0.1f)
+        assertEquals(RiskLevel.DANGER, e.update(0.9f, 0.1f).clone.level)
     }
 
     @Test
@@ -70,10 +88,10 @@ class RiskEngineTest {
     @Test
     fun `overall is the worse of both models`() {
         val e = engine()
-        e.update(0.1f, 0.9f)
+        repeat(3) { e.update(0.1f, 0.9f) }
         val r = e.update(0.1f, 0.9f)
         assertEquals(RiskLevel.OK, r.clone.level)
         assertEquals(RiskLevel.DANGER, r.overall)
-        assertEquals(2, r.windows)
+        assertEquals(4, r.windows)
     }
 }

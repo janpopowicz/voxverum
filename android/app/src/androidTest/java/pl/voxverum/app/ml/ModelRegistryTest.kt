@@ -1,5 +1,6 @@
 package pl.voxverum.app.ml
 
+import ai.onnxruntime.OrtEnvironment
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -32,10 +33,19 @@ class ModelRegistryTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val model = ModelRegistry.load(context).getValue(Task.VOICE_CLONE)
         assertEquals("mother-voice-v1", model.version)
+        val spec = ModelSpec.parse(context.assets.open("models/voice_clone.json").bufferedReader().use { it.readText() })
+        val bytes = context.assets.open("models/${spec.file}").use { it.readBytes() }
+        // Sam model, bez filtra z .json: porównanie z PyTorch.
+        val raw = OnnxClassifier(OrtEnvironment.getEnvironment(), bytes, spec.copy(lowpassHz = null))
         // Oczekiwane wyniki policzył oryginalny MotherVoice w PyTorch (scripts/mother_voice.py) dla
         // tego samego sygnału. Rozjazd oznacza, że eksport albo ONNX Runtime na Androidzie coś psuje.
-        assertEquals(0.821349f, model.classify(toneWithNoise(tone = 0.1, noise = 0.1)), 1e-3f)
-        assertEquals(0.051688f, model.classify(toneWithNoise(tone = 0.2, noise = 0.3)), 1e-3f)
+        assertEquals(0.821349f, raw.classify(toneWithNoise(tone = 0.1, noise = 0.1)), 1e-3f)
+        assertEquals(0.051688f, raw.classify(toneWithNoise(tone = 0.2, noise = 0.3)), 1e-3f)
+        // Klasyfikator aplikacji = ten sam model na wejściu po filtrze z .json.
+        val cutoff = checkNotNull(spec.lowpassHz) { "voice_clone.json powinien mieć lowpass_hz" }
+        val x = toneWithNoise(tone = 0.1, noise = 0.1)
+        assertEquals(raw.classify(LowPass(cutoff, spec.sampleRate).apply(x)), model.classify(x), 1e-6f)
+        raw.close()
     }
 
     /** Ton 220 Hz + szum z prostego LCG, żeby ten sam sygnał dało się odtworzyć w Pythonie. */

@@ -24,14 +24,14 @@ fun VoxTheme(content: @Composable () -> Unit) {
 
 fun RiskLevel.color(): Color = when (this) {
     RiskLevel.UNKNOWN -> Navy
-    RiskLevel.OK -> Confirmed
+    RiskLevel.OK -> Navy // brak oznak klonu to nie „potwierdzone”, więc nie zielony
     RiskLevel.WARN -> Warning
     RiskLevel.DANGER -> Danger
 }
 
 fun RiskLevel.label(): String = when (this) {
     RiskLevel.UNKNOWN -> "brak danych"
-    RiskLevel.OK -> "OK"
+    RiskLevel.OK -> "brak oznak"
     RiskLevel.WARN -> "uwaga"
     RiskLevel.DANGER -> "zagrożenie"
 }

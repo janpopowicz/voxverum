@@ -8,7 +8,7 @@ i puszcza go przez dwa modele AI **na telefonie**:
 1. **voice_clone**: czy głos rozmówcy może być sklonowany,
 2. **scam**: czy rozmowa wygląda na próbę wyłudzenia.
 
-Wynik widać na bieżąco na banerze nad rozmową (zielony, żółty albo czerwony), z wibracją
+Wynik widać na bieżąco na banerze nad rozmową (granatowy: brak oznak klonu, żółty: uwaga, czerwony: alarm), z wibracją
 i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. Biznesplan: `VoxVerum_biznesplan.pdf`.
 
 ## Struktura repo
@@ -28,11 +28,13 @@ i powiadomieniem. Dźwięk nie jest zapisywany ani wysyłany poza urządzenie. B
 - Wykrycie rozmowy: zdarzenia z WhatsApp (okno lub powiadomienie o połączeniu) + tryb audio `MODE_IN_COMMUNICATION`.
 - **voice_clone** to model **Mother Voice v1** od Jana (okno 3 s, próg 0,572 z dev). **scam** nie ma jeszcze modelu,
   więc nigdy nie alarmuje, a ekran Ochrona to pokazuje. Wynik modelu nie jest procentem pewności, dlatego baner pokazuje
-  tylko poziom (zielony, żółty, czerwony). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
+  tylko poziom. Zieleni nie ma, bo brak oznak klonu nie potwierdza tożsamości (klon XTTS przechodzi, patrz
+  [docs/testy-klonu.md](docs/testy-klonu.md)). Szczegóły i ograniczenia modelu: [INTEGRATION.md](INTEGRATION.md), kontrakt: `models/README.md`.
 - Przed modelem odrzucamy ciszę i okna ze stałym tonem (np. sygnałem wołania lub brumem).
   Filtr sprawdza ostatnie 3 s, czyli fragment oceniany przez Mother Voice. Pominięte okno nie jest wynikiem „bezpieczny”.
-- Czerwony alarm wymaga co najmniej dwóch wyników ponad progiem w ostatnich trzech analizowanych oknach.
-  Kolejne niskie wyniki obniżają poziom z powrotem; alarm nie zatrzaskuje się do końca rozmowy.
+- Czerwony alarm wymaga dwóch wyników ponad progiem z nienakładających się fragmentów dźwięku (okna odległe
+  o co najmniej 3 s) w ostatnich sześciu analizowanych oknach. Jeden krótki dźwięk widziany przez trzy kolejne okna
+  daje najwyżej żółty. Kolejne niskie wyniki obniżają poziom z powrotem; alarm nie zatrzaskuje się do końca rozmowy.
   Powiadomienie znika po obniżeniu ryzyka lub zakończeniu rozmowy, a nowa eskalacja może ponownie ostrzec.
   Historia zachowuje najwyższy poziom osiągnięty podczas rozmowy.
 - Filtr tonów ogranicza znany fałszywy alarm opisany w [zgłoszeniu #2](https://github.com/janpopowicz/voxverum/issues/2).
@@ -80,6 +82,7 @@ adb shell dumpsys audio | grep -E "pack:(com.whatsapp|pl.voxverum.app)"
 Szukaj `silenced:false` przy `pl.voxverum.app`. Na emulatorze z Androidem 16 i atrapą komunikatora
 (`MODE_IN_COMMUNICATION` + mikrofon `VOICE_COMMUNICATION`) oba nagrania działają równolegle, baner się pokazuje,
 a po rozłączeniu mikrofon jest zwalniany. Na prawdziwych telefonach i z prawdziwym WhatsAppem trzeba to jeszcze potwierdzić.
+Atrapa i polecenia do powtórzenia testu: [tools/fake_whatsapp](tools/fake_whatsapp/README.md).
 
 ## Tryb symulacji
 Zakładka **Debug → Wybierz plik WAV** puszcza nagranie przez ten sam pipeline co rozmowę.

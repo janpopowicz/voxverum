@@ -45,7 +45,12 @@ Jedno z dwóch:
 }
 ```
 `threshold` to próg, od którego okno liczy się jako podejrzane. Aplikacja dodatkowo wygładza wyniki
-(alarm dopiero, gdy kilka kolejnych okien przekracza próg).
+(alarm dopiero, gdy dwa nienakładające się fragmenty dźwięku przekraczają próg).
+
+Opcjonalnie `"lowpass_hz": 7000`: aplikacja przepuszcza wejście modelu przez filtr dolnoprzepustowy
+Butterwortha 4. rzędu (liczony od zera dla każdego okna, jak `scipy.signal.butter(4, hz, fs=16000)` + `sosfilt`).
+Bez tego pola filtra nie ma. Powód i wyniki: [docs/testy-klonu.md](../docs/testy-klonu.md). `tools/clone_tests/ocena.py`
+czyta to pole z `.json`, więc testy offline liczą to samo co telefon.
 
 ## Jak wpiąć model
 ```bash
@@ -63,7 +68,7 @@ Potem przebudowujecie aplikację i sprawdzacie model w **trybie symulacji** (ekr
 
 ### Mother Voice v1
 ```bash
-tools/model_export/.venv/Scripts/python tools/model_export/export_onnx.py     --task voice_clone --code-dir scripts --model-class mother_voice_onnx:MotherVoiceOnnx     --state-dict models/mother-voice-v1/best.pt --window-seconds 3 --output-type logits --version mother-voice-v1
+tools/model_export/.venv/Scripts/python tools/model_export/export_onnx.py     --task voice_clone --code-dir scripts --model-class mother_voice_onnx:MotherVoiceOnnx     --state-dict models/mother-voice-v1/best.pt --window-seconds 3 --output-type logits --version mother-voice-v1 --lowpass-hz 7000
 tools/model_export/.venv/Scripts/python -m unittest tools/model_export/test_mother_voice_onnx.py
 ```
 `torch.stft` na liczbach zespolonych nie przechodzi eksportu do ONNX, dlatego `mother_voice_onnx.py` liczy to samo widmo
