@@ -10,8 +10,9 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
+from scipy.signal import sosfilt
 
-from ocena import SR, Risk, channel, load, vad
+from ocena import SR, Risk, channel, load, model_lowpass, vad
 
 
 def ringback(seconds: float) -> np.ndarray:
@@ -29,6 +30,7 @@ def main() -> None:
     p.add_argument("--kanal", default="glosnik")
     args = p.parse_args()
     spec = json.loads(args.model.with_suffix(".json").read_text())
+    sos = model_lowpass(spec.get("lowpass_hz"))
     so = ort.SessionOptions()
     so.intra_op_num_threads = 2
     sess = ort.InferenceSession(str(args.model), so)
@@ -47,7 +49,9 @@ def main() -> None:
         seg = parts[int(np.bincount(labels[end - n:end]).argmax())][0]
         ok, sp, tn = vad(w)
         if ok:
-            logit = float(sess.run(None, {"audio": w[None, :]})[0].reshape(-1)[0])
+            if sos is not None:
+                w = sosfilt(sos, w)
+            logit = float(sess.run(None, {"audio": w[None, :].astype(np.float32)})[0].reshape(-1)[0])
             s = 1 / (1 + math.exp(-logit))
             level = risk.update(s)
             print(f"{end / SR:5.0f} s  {seg:9s}  wynik={s:.3f}  -> {level}")

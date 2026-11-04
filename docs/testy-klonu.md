@@ -53,7 +53,7 @@ albo wzór głosu właściciela zapisany przy konfiguracji), ale to temat na pó
   jak Ignacy. To główne ograniczenie Mother Voice v1: model rozpoznaje generatory z treningu, a nie
   „syntetyczność” w ogóle. Jan sam pisze o tym w `INTEGRATION.md` jako o ocenie do zrobienia.
 - Dlatego aplikacja **nie pokazuje już zielonego** „Nie wykryto zagrożenia”. W trakcie rozmowy baner jest granatowy:
-  „Brak oznak klonu głosu. To nie potwierdza, kto mówi”, z przypomnieniem o Kodzie Rozmowy.
+  „Brak oznak klonu głosu. To nie potwierdza, kto mówi”, z przypomnieniem o potwierdzeniu prośby innym kanałem.
 
 ### Poprawki w aplikacji z tego testu
 - VAD: stały ton musi trwać ≥ 500 ms, a nie ≥ 300 ms. Przy 300 ms odpadało do 5 z 12 okien prawdziwej mowy

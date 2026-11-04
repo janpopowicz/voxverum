@@ -3,6 +3,7 @@ package pl.voxverum.app.core
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import pl.voxverum.app.ml.Scores
 import pl.voxverum.app.risk.RiskAssessment
 
@@ -40,7 +41,9 @@ object VoxState {
     val audio: StateFlow<AudioStatus> = _audio.asStateFlow()
 
     fun updateAudio(transform: (AudioStatus) -> AudioStatus) {
-        _audio.value = transform(_audio.value)
+        // Mikrofon, VAD i UI aktualizują różne pola z różnych wątków.
+        // Atomowa aktualizacja zachowuje zmiany, które pojawiły się równolegle.
+        _audio.update(transform)
     }
 
     private val _scores = MutableStateFlow<Scores?>(null)

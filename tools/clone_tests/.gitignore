@@ -6,3 +6,4 @@
 *.jsonl
 dane/
 env-*/
+__pycache__/
